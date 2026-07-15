@@ -21,7 +21,7 @@
           <q-item>
             <q-item-section>
               <div class="text-h6">{{stats.wan.name}}</div>
-              <div class="text-subtitle2">{{$t(`SERVICE.${serviceStatus}`)}}</div>
+              <div class="text-subtitle2">{{$t(`SERVICE.${displayStatus}`)}}</div>
               <q-item-label caption>{{$t('UNIFI.VERSION', {version})}}</q-item-label>
             </q-item-section>
             <q-item-section avatar>
@@ -96,6 +96,7 @@ export default {
     const serviceStatus = computed(() => store.state.Settings.serviceStatus);
     const error = computed(() => store.state.Global.error);
     const connectionError = computed(() => store.state.Settings.connectionError);
+    const hasStats = computed(() => !!(stats.value && stats.value.wan && stats.value.www));
 
     const connected = computed(() => {
       if (loginRequired.value || error.value || connectionError.value) {
@@ -107,11 +108,12 @@ export default {
       if (!config.value.username || !config.value.ipaddress || !config.value.password) {
         return false;
       }
-      if (serviceStatus.value !== 'CONNECTED') {
-        return false;
-      }
-      return true;
+
+      // Successful stats calls prove controller reachability even if websocket status lags behind.
+      return hasStats.value || serviceStatus.value === 'CONNECTED';
     });
+
+    const displayStatus = computed(() => (connected.value ? 'CONNECTED' : serviceStatus.value));
 
     const uptime = (uptime) => {
       if (uptime < 3600) {
@@ -145,6 +147,7 @@ export default {
       loginRequired,
       error,
       connected,
+      displayStatus,
       stats,
       ispUptime,
       udmUptime,

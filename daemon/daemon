@@ -6,5 +6,9 @@ PATH="/sbin:/bin:/usr/sbin:/usr/bin:$LBHOMEDIR/bin:$LBHOMEDIR/sbin"
 ENVIRONMENT=$(cat /etc/environment)
 export $ENVIRONMENT
 
-su loxberry -c "npm --prefix $LBHOMEDIR/bin/plugins/${PLUGINNAME} run start"
+LOGDIR="$LBPLOG/$PLUGINNAME"
+mkdir -p "$LOGDIR"
+chown -R loxberry:loxberry "$LOGDIR"
+
+su loxberry -c "npm --prefix $LBHOMEDIR/bin/plugins/${PLUGINNAME} run start >>$LOGDIR/unifi-presence.log 2>>$LOGDIR/unifi-presence-error.log"
 exit 0

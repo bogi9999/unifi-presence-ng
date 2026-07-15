@@ -4,6 +4,7 @@
   "ipaddress": "",
   "topic": "UniFi/clients",
   "site": "default",
+  "autoDetectNative": true,
   "native": true,
   "port": null,
   "mqttMode": "loxberry",

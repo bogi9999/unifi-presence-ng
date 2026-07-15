@@ -76,11 +76,23 @@ module.exports = class UniFi {
   setConfig(config) {
     this.config = config;
 
+    if (_.isUndefined(this.config.autoDetectNative)) {
+      this.config.autoDetectNative = true;
+    }
+
+    if (this.config.port === '') {
+      this.config.port = null;
+    }
+
     if (_.isUndefined(this.config.native)) {
       this.config.native = true;
     }
     if (_.isUndefined(this.config.port)) {
       this.config.port = null;
+    }
+
+    if (this.config.autoDetectNative) {
+      this.config.native = _.isNil(this.config.port);
     }
   }
 

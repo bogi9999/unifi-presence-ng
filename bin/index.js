@@ -275,9 +275,14 @@ const startApiServer = async () => {
         const www = _.find(healthData, (d) => _.get(d, 'subsystem', '') === 'www');
         const wan = _.find(healthData, (d) => _.get(d, 'subsystem', '') === 'wan');
 
+        if (currentState !== states.NO_MQTT) {
+          sendStatus(states.CONNECTED);
+        }
+
         return sendJson(response, 200, {
           version,
           versionError: false,
+          serviceStatus: currentState,
           deviceType,
           wan: {
             name: _.get(wan, 'gw_name', ''),
@@ -295,6 +300,11 @@ const startApiServer = async () => {
       if (pathname === '/api/clients' && req.method === 'GET') {
         return withUnifiError(async (request, response) => {
         const clients = await uniFi.getActiveClients();
+
+        if (currentState !== states.NO_MQTT) {
+          sendStatus(states.CONNECTED);
+        }
+
         return sendJson(response, 200, { clients });
         })(req, res);
       }

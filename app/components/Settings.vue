@@ -4,7 +4,26 @@
     <div class="col-12">
       <div class="text-h5 self-end">{{ $t('UNIFI.PLUGIN_SETTINGS') }}</div>
       <q-separator spaced />
+      <q-select
+        name="mqttMode"
+        :ref="formFields.mqttMode"
+        :disable="isSaving || isLoading"
+        :loading="isLoading"
+        emit-value
+        map-options
+        :options="mqttModeOptions"
+        v-model="config.mqttMode"
+        :label="$t('UNIFI.MQTT_MODE')"
+        :hint="$t('UNIFI.MQTT_MODE_HINT')"
+      />
       <q-input v-if="hasMqtt" name="topic" :ref="formFields.topic" :disable="isSaving || isLoading" :loading="isLoading" v-model="config.topic" :label="$t('UNIFI.TOPIC')" :hint="$t('UNIFI.TOPIC_HINT')" :rules="validationRules.topic" data-role="none" />
+      <div v-if="isCustomMqtt">
+        <q-input name="mqttHost" :ref="formFields.mqttHost" :disable="isSaving || isLoading" :loading="isLoading" v-model="config.mqttHost" :label="$t('UNIFI.MQTT_HOST')" :rules="validationRules.required" data-role="none" />
+        <q-input name="mqttPort" :ref="formFields.mqttPort" :disable="isSaving || isLoading" :loading="isLoading" v-model.number="config.mqttPort" :label="$t('UNIFI.MQTT_PORT')" :rules="validationRules.port" data-role="none" />
+        <q-input name="mqttUser" :ref="formFields.mqttUser" :disable="isSaving || isLoading" :loading="isLoading" v-model="config.mqttUser" :label="$t('UNIFI.MQTT_USER')" :rules="validationRules.required" data-role="none" />
+        <q-input name="mqttPassword" :ref="formFields.mqttPassword" :disable="isSaving || isLoading" :loading="isLoading" v-model="config.mqttPassword" :label="$t('UNIFI.MQTT_PASSWORD')" :rules="validationRules.required" data-role="none" />
+        <q-input name="mqttClientId" :ref="formFields.mqttClientId" :disable="isSaving || isLoading" :loading="isLoading" v-model="config.mqttClientId" :label="$t('UNIFI.MQTT_CLIENT_ID')" data-role="none" />
+      </div>
       <q-banner v-else rounded class="bg-red text-white q-mt-md">
         {{$t('UNIFI.NEED_MQTT')}}
       </q-banner>
@@ -12,9 +31,11 @@
 
       <div class="text-h5 q-mt-xl self-end">{{$t('UNIFI.CONTROLLER')}}</div>
       <q-separator spaced />
-      <q-toggle name="native" :ref="formFields.native" :disable="isSaving || isLoading" :loading="isLoading" v-model="config.native" size="lg" :label="$t('UNIFI.NATIVE_HINT')" />
+      <q-banner rounded class="bg-blue-1 text-blue-10 q-mt-md q-mb-md">
+        {{$t('UNIFI.CONTROLLER_AUTO_HINT')}}
+      </q-banner>
       <q-input name="ip" :ref="formFields.ipAddress" :disable="isSaving || isLoading" :loading="isLoading" v-model="config.ipaddress" :label="$t('UNIFI.IP')" :hint="$t('UNIFI.IP_HINT')" :rules="validationRules.ipAddress" data-role="none" />
-      <q-input name="port" :ref="formFields.port" :disable="isSaving || isLoading" :loading="isLoading" v-if="!config.native" v-model="config.port" :label="$t('UNIFI.PORT')" :hint="$t('UNIFI.PORT_HINT')" :rules="validationRules.port" data-role="none" />
+      <q-input name="port" :ref="formFields.port" :disable="isSaving || isLoading" :loading="isLoading" v-model="config.port" :label="$t('UNIFI.PORT')" :hint="$t('UNIFI.PORT_HINT')" :rules="validationRules.port" data-role="none" />
       <q-input name="username" :ref="formFields.username" :disable="isSaving || isLoading" :loading="isLoading" v-model="config.username" :label="$t('UNIFI.USERNAME')" :rules="validationRules.required" :error="loginError" data-role="none" />
       <q-input name="password" :ref="formFields.password" :disable="isSaving || isLoading" :loading="isLoading" :type="showPassword ? 'password' : 'text'" v-model="config.password" :label="$t('UNIFI.PASSWORD')" :rules="validationRules.required" :error="loginError" data-role="none">
         <template v-slot:append>
@@ -82,8 +103,13 @@ export default {
     const loginError = computed(() => store.state.Settings.loginError);
     const isLoading = computed(() => store.state.Global.loading);
     const serviceStatus = computed(() => store.state.Settings.serviceStatus);
-    const hasMqtt = computed(() => serviceStatus.value !== 'NO_MQTT');
+    const hasMqtt = computed(() => serviceStatus.value !== 'NO_MQTT' || config.value.mqttMode === 'custom');
+    const isCustomMqtt = computed(() => config.value.mqttMode === 'custom');
     const isSaving = ref(false);
+    const mqttModeOptions = [
+      { label: t('UNIFI.MQTT_MODE_LOXBERRY'), value: 'loxberry' },
+      { label: t('UNIFI.MQTT_MODE_CUSTOM'), value: 'custom' }
+    ];
     const wiredTimeoutOptions = [
       { label: t('TIMEOUT_OPTIONS.SECONDS', { count: 10 }), value: 10 },
       { label: t('TIMEOUT_OPTIONS.SECONDS', { count: 20 }), value: 20 },
@@ -98,7 +124,12 @@ export default {
     ];
     const formFields = {
       topic: ref(null),
-      native: ref(null),
+      mqttMode: ref(null),
+      mqttHost: ref(null),
+      mqttPort: ref(null),
+      mqttUser: ref(null),
+      mqttPassword: ref(null),
+      mqttClientId: ref(null),
       ipAddress: ref(null),
       port: ref(null),
       username: ref(null),
@@ -145,6 +176,8 @@ export default {
       versionError,
       version,
       hasMqtt,
+      isCustomMqtt,
+      mqttModeOptions,
       wiredTimeoutOptions
     };
   }

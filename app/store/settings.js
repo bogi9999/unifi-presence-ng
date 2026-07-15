@@ -129,10 +129,16 @@ const actions = {
 const mutations = {
   [mutationTypes.STORE_CONFIG](state, config) {
     if (!config.wiredTimeout) config.wiredTimeout = 30;
+    if (!config.mqttMode) config.mqttMode = 'loxberry';
+    if (!config.mqttClientId) config.mqttClientId = 'UniFiPresenceNG';
+    if (config.autoDetectNative === undefined) config.autoDetectNative = true;
     state.config = config;
     state.existingClients = config.clients.map((client) => client.mac);
   },
   [mutationTypes.STORE_STATS](state, stats) {
+    if (stats.serviceStatus) {
+      state.serviceStatus = stats.serviceStatus;
+    }
     if (stats.version) {
       state.version = stats.version;
       state.versionError = stats.versionError;
