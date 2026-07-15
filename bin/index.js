@@ -12,9 +12,42 @@ const configFile = `${directories.config}/unifi.json`;
 const cookieFile = `${directories.data}/unifi.cookies.json`;
 const globalConfigFile = `${directories.homedir}/config/system/general.json`;
 const subscriptionFile = `${directories.config}/mqtt_subscriptions.cfg`;
+const logFile = path.resolve(directories.logdir, 'unifi-presence.log');
+const errorLogFile = path.resolve(directories.logdir, 'unifi-presence-error.log');
 
 let config = require(configFile);
 let globalConfig = require(globalConfigFile);
+
+const writeServiceLog = (file, parts) => {
+  try {
+    fs.mkdirSync(directories.logdir, { recursive: true });
+    const message = parts
+      .map((part) => {
+        if (part instanceof Error) return part.stack || part.message;
+        if (typeof part === 'string') return part;
+        try {
+          return JSON.stringify(part);
+        } catch {
+          return String(part);
+        }
+      })
+      .join(' ');
+    fs.appendFileSync(file, `${new Date().toISOString()} ${message}\n`);
+  } catch {
+    // Do not crash the service when logging fails.
+  }
+};
+
+const originalConsoleLog = console.log.bind(console);
+const originalConsoleError = console.error.bind(console);
+console.log = (...args) => {
+  writeServiceLog(logFile, args);
+  originalConsoleLog(...args);
+};
+console.error = (...args) => {
+  writeServiceLog(errorLogFile, args);
+  originalConsoleError(...args);
+};
 
 const API_BIND_HOST = process.env.UNIFI_PRESENCE_NG_BIND_HOST || process.env.UNIFI_PRESENCE_NG_HOST || '0.0.0.0';
 const API_SOCKET_HOST = process.env.UNIFI_PRESENCE_NG_SOCKET_HOST || (API_BIND_HOST === '0.0.0.0' ? '127.0.0.1' : API_BIND_HOST);
@@ -527,6 +560,9 @@ const openSocket = () => {
 const hasMqttInstalled = async () => {
   if ((config.mqttMode || 'loxberry') === 'custom') {
     await mqtt.connect();
+    if (config.topic) {
+      mqtt.send(`${config.topic}/service/boot`, JSON.stringify({ status: 'BOOT', timestamp: new Date().toISOString() }));
+    }
     return true;
   }
 
@@ -539,6 +575,9 @@ const hasMqttInstalled = async () => {
   }
   mqtt.setConfig(globalConfig);
   await mqtt.connect();
+  if (config.topic) {
+    mqtt.send(`${config.topic}/service/boot`, JSON.stringify({ status: 'BOOT', timestamp: new Date().toISOString() }));
+  }
   return true;
 };
 
