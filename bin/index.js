@@ -72,6 +72,15 @@ const sendToWebClients = (payload) => {
   });
 };
 
+const ensureMqttSubscription = async () => {
+  if (!config.topic) return;
+  try {
+    await fs.promises.writeFile(subscriptionFile, `${config.topic}/#`, 'utf-8');
+  } catch (error) {
+    console.log(`Could not write MQTT subscription file: ${error.message}`);
+  }
+};
+
 const parseJsonBody = async (req) => {
   return new Promise((resolve, reject) => {
     let body = '';
@@ -403,6 +412,7 @@ fs.watch(configFile, {}, () => {
     console.log('load new config');
     uniFi.setConfig(config);
     mqtt.setPluginConfig(config);
+    ensureMqttSubscription();
   } catch {
     //
   }
@@ -421,6 +431,14 @@ const sendStatus = (status) => {
     type: 'serviceStatus',
     data: { status }
   });
+
+  if (config.topic) {
+    mqtt.send(
+      `${config.topic}/service/status`,
+      JSON.stringify({ status, timestamp: new Date().toISOString() })
+    );
+  }
+
   if (socket && socket.readyState === ws.OPEN) {
     socket.send(lastServiceStatus);
   }
@@ -533,6 +551,7 @@ const main = async () => {
   await startApiServer();
   openSocket();
   await hasMqttInstalled();
+  await ensureMqttSubscription();
   await eventLoop();
 };
 

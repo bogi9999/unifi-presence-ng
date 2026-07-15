@@ -75,6 +75,10 @@ module.exports = class Mqtt {
     if (!this.client.connected) {
       this.client.reconnect();
     }
-    this.client.publish(topic, message);
+    this.client.publish(topic, message, (error) => {
+      if (error) {
+        console.log(`MQTT publish failed for ${topic}: ${error.message}`);
+      }
+    });
   }
 };

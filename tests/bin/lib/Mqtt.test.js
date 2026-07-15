@@ -105,13 +105,13 @@ describe('MQTT', () => {
       mqttInstance.client.connected = false;
       mqttInstance.send('foo', 'message');
       expect(mqttClient.reconnect).toHaveBeenCalled();
-      expect(mqttClient.publish).toHaveBeenCalledWith('foo', 'message');
+      expect(mqttClient.publish).toHaveBeenCalledWith('foo', 'message', expect.any(Function));
     });
     it('sends the message', () => {
       mqttInstance.client = mqttClient;
       mqttInstance.send('topic', 'the message');
       expect(mqttClient.reconnect).not.toHaveBeenCalled();
-      expect(mqttClient.publish).toHaveBeenCalledWith('topic', 'the message');
+      expect(mqttClient.publish).toHaveBeenCalledWith('topic', 'the message', expect.any(Function));
     });
   });
 });
