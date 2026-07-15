@@ -24,9 +24,11 @@ jobs:
           cache: "npm"
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --include=dev
 
       - name: Build web frontend (Vite) into webfrontend/htmlauth/assets
+        env:
+          NODE_ENV: development
         run: npm run build
 
       - name: Create plugin zip
