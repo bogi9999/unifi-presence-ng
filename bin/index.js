@@ -46,6 +46,8 @@ console.error = (...args) => {
   originalConsoleError(...args);
 };
 
+console.log('UniFi Presence NG service bootstrap started');
+
 const loadJsonFile = (file, fallback = {}) => {
   try {
     delete require.cache[require.resolve(file)];

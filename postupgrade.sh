@@ -20,6 +20,19 @@ PCONFIG=$LBPCONFIG/$PDIR
 PSBIN=$LBPSBIN/$PDIR
 PBIN=$LBPBIN/$PDIR
 
+run_as_loxberry() {
+    CMD="$1"
+    if [ "$(id -u)" -eq 0 ]; then
+        if command -v runuser >/dev/null 2>&1; then
+            runuser -u loxberry -- sh -c "$CMD"
+        else
+            su -s /bin/sh loxberry -c "$CMD"
+        fi
+    else
+        sh -c "$CMD"
+    fi
+}
+
 echo "<INFO> Copy back existing backup"
 cp -p -v -r $PTEMPL\_upgrade/config/$PDIR/* $PCONFIG 
 cp -p -v -r $PTEMPL\_upgrade/data/$PDIR/* $PDATA
@@ -38,13 +51,13 @@ echo "$(date '+%Y-%m-%dT%H:%M:%S%z') postupgrade: restarting service" >> "$PLOGS
 
 echo "<INFO> Sync frontend to classic webroot"
 mkdir -p $PHTML
-cp -p -v -r $PBIN/webfrontend/htmlauth/* $PHTML/
+cp -p -v -r $PHTMLAUTH/* $PHTML/
 
 
 echo "<INFO> Stop old Event App"
-su loxberry -c "npm --prefix $PBIN run stop >>$PLOGS/unifi-presence.log 2>>$PLOGS/unifi-presence-error.log || true"
+run_as_loxberry "npm --prefix $PBIN run stop >>$PLOGS/unifi-presence.log 2>>$PLOGS/unifi-presence-error.log || true"
 
 echo "<INFO> Start Event App in background"
-su loxberry -c "nohup npm --prefix $PBIN start >>$PLOGS/unifi-presence.log 2>>$PLOGS/unifi-presence-error.log &"
+run_as_loxberry "nohup npm --prefix $PBIN start >>$PLOGS/unifi-presence.log 2>>$PLOGS/unifi-presence-error.log &"
 
 exit 0;
