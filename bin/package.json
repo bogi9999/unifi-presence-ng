@@ -1,6 +1,6 @@
 {
   "name": "unifi-presence-bin",
-  "version": "4.0.0-alpha16",
+  "version": "4.0.0-alpha17",
   "description": "",
   "main": "index.js",
   "directories": {
@@ -13,7 +13,7 @@
   "scripts": {
     "dev": "nodemon -w ./ index.js",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node index.js",
+    "start": "NODE_ENV=production node index.js",
     "stop": "pkill -f 'bin/index.js' || true",
     "restart": "npm run stop && npm run start"
   },

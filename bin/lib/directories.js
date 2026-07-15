@@ -1,5 +1,5 @@
 const path = require('path');
-const PRODUCTION = process.env.NODE_ENV === 'production';
+const PRODUCTION = process.env.NODE_ENV === 'production' || !!process.env.LBHOMEDIR || process.env.HOME === '/opt/loxberry';
 
 const directories = () => {
   if (PRODUCTION) {
@@ -7,7 +7,7 @@ const directories = () => {
       config: 'REPLACELBPCONFIGDIR',
       data: 'REPLACELBPDATADIR',
       logdir: 'REPLACELBPLOGDIR',
-      homedir: process.env.LBHOMEDIR
+      homedir: process.env.LBHOMEDIR || '/opt/loxberry'
     };
   }
 
