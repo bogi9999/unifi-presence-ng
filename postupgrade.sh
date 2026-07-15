@@ -58,6 +58,6 @@ echo "<INFO> Stop old Event App"
 run_as_loxberry "NODE_ENV=production npm --prefix $PBIN run stop >>$PLOGS/unifi-presence.log 2>>$PLOGS/unifi-presence-error.log || true"
 
 echo "<INFO> Start Event App in background"
-run_as_loxberry "nohup NODE_ENV=production npm --prefix $PBIN start >>$PLOGS/unifi-presence.log 2>>$PLOGS/unifi-presence-error.log &"
+run_as_loxberry "nohup env NODE_ENV=production npm --prefix $PBIN start >>$PLOGS/unifi-presence.log 2>>$PLOGS/unifi-presence-error.log &"
 
 exit 0;
