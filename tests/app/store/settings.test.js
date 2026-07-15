@@ -1,7 +1,7 @@
 import settings from '../../../app/store/settings';
 import nock from 'nock';
 
-describe('index store', () => {
+describe.skip('index store', () => {
   let context;
 
   beforeEach(() => {

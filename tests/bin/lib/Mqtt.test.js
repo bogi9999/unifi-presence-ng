@@ -2,9 +2,9 @@ const Mqtt = require('../../../bin/lib/Mqtt');
 const mqtt = require('../../../bin/node_modules/mqtt');
 jest.mock('../../../bin/node_modules/mqtt');
 describe('MQTT', () => {
-  let config, mqttInstance, mqttClient;
+  let globalConfig, mqttInstance, mqttClient;
   beforeEach(() => {
-    config = {
+    globalConfig = {
       Mqtt: {
         Brokeruser: 'user',
         Brokerpass: 'password',
@@ -16,70 +16,79 @@ describe('MQTT', () => {
       end: jest.fn().mockName('mqtt.end'),
       publish: jest.fn().mockName('mqtt.publish'),
       reconnect: jest.fn().mockName('mqtt.reconnect'),
+      on: jest.fn().mockImplementation((event, callback) => {
+        if (event === 'connect') callback();
+      }),
       connected: true
     };
     mqtt.connect.mockReturnValue(mqttClient);
-    mqttInstance = new Mqtt(config);
+    mqttInstance = new Mqtt(globalConfig);
   });
   afterEach(() => {
     jest.resetAllMocks();
   });
   describe('constructor', () => {
     it('should set the config', () => {
-      expect(mqttInstance.config).toEqual(config.Mqtt);
+      expect(mqttInstance.config).toEqual(globalConfig.Mqtt);
     });
-    it('Throws error when MQTT config is missing', () => {
-      expect(() => new Mqtt({})).toThrow(Error('Cant connect to MQTT. Configuration is missing'));
-    });
-    it('Throws error when BrokerHost is missing', () => {
-      delete config.Mqtt.Brokerhost;
-      expect(() => new Mqtt(config)).toThrow(Error('Cant connect to MQTT. Configuration is missing'));
-    });
-    it('Throws error when BrokerPort is missing', () => {
-      delete config.Mqtt.Brokerport;
-      expect(() => new Mqtt(config)).toThrow(Error('Cant connect to MQTT. Configuration is missing'));
-    });
-    it('Throws error when BrokerUser is missing', () => {
-      delete config.Mqtt.Brokeruser;
-      expect(() => new Mqtt(config)).toThrow(Error('Cant connect to MQTT. Configuration is missing'));
-    });
-    it('Throws error when BrokerPass is missing', () => {
-      delete config.Mqtt.Brokerpass;
-      expect(() => new Mqtt(config)).toThrow(Error('Cant connect to MQTT. Configuration is missing'));
-    });
-    it('directly connects to MQTT', () => {
-      expect(mqtt.connect).toHaveBeenCalledWith('mqtt://localhost:7721', {
-        clientId: 'UniFiPresence',
-        password: 'password',
-        username: 'user'
-      });
+    it('supports plugin config injection', () => {
+      const pluginConfig = { mqttMode: 'custom' };
+      const instance = new Mqtt(globalConfig, pluginConfig);
+      expect(instance.pluginConfig).toEqual(pluginConfig);
     });
   });
   describe('connect', () => {
-    it('connects again', () => {
-      mqttInstance.connect();
+    it('connects with loxberry broker config', async () => {
+      await mqttInstance.connect();
       expect(mqtt.connect).toHaveBeenCalledWith('mqtt://localhost:7721', {
-        clientId: 'UniFiPresence',
+        clientId: 'UniFiPresenceNG',
+        keepalive: 300,
         password: 'password',
+        queueQoSZero: false,
+        reconnectPeriod: 0,
         username: 'user'
       });
-      expect(mqtt.connect).toHaveBeenCalledTimes(2);
     });
-    it('stores the connection', () => {
-      mqttInstance.connect();
+    it('stores the connection', async () => {
+      await mqttInstance.connect();
       expect(mqttInstance.client).toEqual(mqttClient);
+    });
+    it('throws when loxberry mqtt config is incomplete', async () => {
+      mqttInstance.setConfig({ Mqtt: { Brokerhost: 'localhost' } });
+      await expect(mqttInstance.connect()).rejects.toEqual(Error('Cant connect to MQTT. Configuration is missing'));
+    });
+    it('connects with custom broker config', async () => {
+      mqttInstance.setPluginConfig({
+        mqttMode: 'custom',
+        mqttHost: 'custom-host',
+        mqttPort: 1885,
+        mqttUser: 'custom-user',
+        mqttPassword: 'custom-password',
+        mqttClientId: 'custom-client'
+      });
+
+      await mqttInstance.connect();
+
+      expect(mqtt.connect).toHaveBeenCalledWith('mqtt://custom-host:1885', {
+        clientId: 'custom-client',
+        keepalive: 300,
+        password: 'custom-password',
+        queueQoSZero: false,
+        reconnectPeriod: 0,
+        username: 'custom-user'
+      });
     });
   });
   describe('disconnect', () => {
     it('disconnects', () => {
+      mqttInstance.client = mqttClient;
       mqttInstance.disconnect();
       expect(mqttClient.end).toHaveBeenCalled();
     });
-    it('disconnects only once', () => {
+    it('does nothing when client is missing', () => {
+      mqttInstance.client = null;
       mqttInstance.disconnect();
-      mqttClient.connected = false;
-      mqttInstance.disconnect();
-      expect(mqttClient.end).toHaveBeenCalledTimes(1);
+      expect(mqttClient.end).not.toHaveBeenCalled();
     });
   });
   describe('send', () => {
@@ -89,12 +98,14 @@ describe('MQTT', () => {
       expect(mqttClient.publish).not.toHaveBeenCalled();
     });
     it('reconnects when the client is disconnected', () => {
+      mqttInstance.client = mqttClient;
       mqttInstance.client.connected = false;
       mqttInstance.send('foo', 'message');
       expect(mqttClient.reconnect).toHaveBeenCalled();
       expect(mqttClient.publish).toHaveBeenCalledWith('foo', 'message');
     });
     it('sends the message', () => {
+      mqttInstance.client = mqttClient;
       mqttInstance.send('topic', 'the message');
       expect(mqttClient.reconnect).not.toHaveBeenCalled();
       expect(mqttClient.publish).toHaveBeenCalledWith('topic', 'the message');

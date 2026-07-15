@@ -7,8 +7,8 @@ jest.mock('fs', () => ({
     access: jest.fn().mockName('access')
   },
   constants: {
-    R_OK: 'R_OK',
-    W_OK: 'W_OK'
+    R_OK: 4,
+    W_OK: 2
   }
 }));
 
@@ -82,7 +82,8 @@ describe('Cookie Parser', () => {
     beforeEach(async () => {
       fs.promises.access.mockResolvedValue(true);
       const fileHandle = {
-        readFile: jest.fn().mockResolvedValue(JSON.stringify(cookies))
+        readFile: jest.fn().mockResolvedValue(JSON.stringify(cookies)),
+        close: jest.fn().mockResolvedValue()
       };
       fs.promises.open.mockResolvedValue(fileHandle);
       await cookieParser.load();
@@ -108,21 +109,15 @@ describe('Cookie Parser', () => {
     });
   });
   describe('save', () => {
-    it('fails when the file cant be accessed', async () => {
-      fs.promises.access.mockRejectedValue(Error('Cannot access file'));
-      await expect(cookieParser.save()).rejects.toEqual(Error('Cannot access file'));
-      expect(fs.promises.access).toHaveBeenCalledWith('data/unifi.cookies.json', 0);
-    });
     it('fails when the file cant be opened', async () => {
-      fs.promises.access.mockResolvedValue(true);
       fs.promises.open.mockRejectedValue(Error('Cannot open file'));
       await expect(cookieParser.save()).rejects.toEqual(Error('Cannot open file'));
-      expect(fs.promises.open).toHaveBeenCalledWith('data/unifi.cookies.json', 'r');
+      expect(fs.promises.open).toHaveBeenCalledWith('data/unifi.cookies.json', 'w+');
     });
     it('fails when the file cant be read', async () => {
-      fs.promises.access.mockResolvedValue(true);
       const fileHandle = {
-        writeFile: jest.fn().mockRejectedValue(Error('Cannot write file'))
+        writeFile: jest.fn().mockRejectedValue(Error('Cannot write file')),
+        close: jest.fn().mockResolvedValue()
       };
       fs.promises.open.mockResolvedValue(fileHandle);
       await expect(cookieParser.save()).rejects.toEqual(Error('Cannot write file'));
@@ -140,7 +135,8 @@ describe('Cookie Parser', () => {
       };
       fs.promises.access.mockResolvedValue(true);
       const fileHandle = {
-        writeFile: jest.fn().mockResolvedValue()
+        writeFile: jest.fn().mockResolvedValue(),
+        close: jest.fn().mockResolvedValue()
       };
       fs.promises.open.mockResolvedValue(fileHandle);
       await expect(cookieParser.save()).resolves.toBeUndefined();
@@ -161,7 +157,8 @@ describe('Cookie Parser', () => {
       };
       fs.promises.access.mockResolvedValue(true);
       const fileHandle = {
-        writeFile: jest.fn().mockResolvedValue()
+        writeFile: jest.fn().mockResolvedValue(),
+        close: jest.fn().mockResolvedValue()
       };
       fs.promises.open.mockResolvedValue(fileHandle);
       await expect(cookieParser.save()).resolves.toBeUndefined();
@@ -172,47 +169,66 @@ describe('Cookie Parser', () => {
     });
   });
   describe('load', () => {
-    it('fails when the file cant be accessed', async () => {
+    it('creates empty cookie store when file cannot be accessed', async () => {
       fs.promises.access.mockRejectedValue(Error('cant access file'));
-      await expect(cookieParser.load()).rejects.toEqual(Error('cant access file'));
-      expect(fs.promises.access).toHaveBeenCalledWith('data/unifi.cookies.json', 0);
+      const fileHandle = {
+        writeFile: jest.fn().mockResolvedValue(),
+        close: jest.fn().mockResolvedValue()
+      };
+      fs.promises.open.mockResolvedValue(fileHandle);
+
+      await expect(cookieParser.load()).resolves.toBeUndefined();
+      expect(fileHandle.writeFile).toHaveBeenCalledWith('[]', 'UTF-8');
+      expect(cookieParser.cookies).toEqual({});
     });
-    it('fails when the file cant be opened', async () => {
+    it('creates empty cookie store when file cannot be opened for reading', async () => {
       fs.promises.access.mockResolvedValue(true);
-      fs.promises.open.mockRejectedValue(Error('Cannot open file'));
-      await expect(cookieParser.load()).rejects.toEqual(Error('Cannot open file'));
+      fs.promises.open
+        .mockRejectedValueOnce(Error('Cannot open file'))
+        .mockResolvedValueOnce({
+          writeFile: jest.fn().mockResolvedValue(),
+          close: jest.fn().mockResolvedValue()
+        });
+
+      await expect(cookieParser.load()).resolves.toBeUndefined();
       expect(fs.promises.open).toHaveBeenCalledWith('data/unifi.cookies.json', 'r');
     });
-    it('fails when the file cant be read', async () => {
+    it('creates empty cookie store when file cannot be read', async () => {
       fs.promises.access.mockResolvedValue(true);
       const fileHandle = {
-        readFile: jest.fn().mockRejectedValue(Error('Cannot read file'))
+        readFile: jest.fn().mockRejectedValue(Error('Cannot read file')),
+        close: jest.fn().mockResolvedValue()
       };
-      fs.promises.open.mockResolvedValue(fileHandle);
-      await expect(cookieParser.load()).rejects.toEqual(Error('Cannot read file'));
+      const saveHandle = {
+        writeFile: jest.fn().mockResolvedValue(),
+        close: jest.fn().mockResolvedValue()
+      };
+      fs.promises.open.mockResolvedValueOnce(fileHandle).mockResolvedValueOnce(saveHandle);
+
+      await expect(cookieParser.load()).resolves.toBeUndefined();
       expect(fileHandle.readFile).toHaveBeenCalled();
     });
-    it('fails when the file content cant be parsed', async () => {
+    it('creates empty cookie store when file content cannot be parsed', async () => {
       fs.promises.access.mockResolvedValue(true);
       const fileHandle = {
-        readFile: jest.fn().mockResolvedValue('invalid json')
+        readFile: jest.fn().mockResolvedValue('invalid json'),
+        close: jest.fn().mockResolvedValue()
       };
-      fs.promises.open.mockResolvedValue(fileHandle);
-      await expect(cookieParser.load()).rejects.toEqual(SyntaxError('Unexpected token i in JSON at position 0'));
+      const saveHandle = {
+        writeFile: jest.fn().mockResolvedValue(),
+        close: jest.fn().mockResolvedValue()
+      };
+      fs.promises.open.mockResolvedValueOnce(fileHandle).mockResolvedValueOnce(saveHandle);
+
+      await expect(cookieParser.load()).resolves.toBeUndefined();
       expect(fileHandle.readFile).toHaveBeenCalled();
-    });
-    it('fails when the file content cant be parsed', async () => {
-      fs.promises.access.mockResolvedValue(true);
-      const fileHandle = {
-        readFile: jest.fn().mockResolvedValue('invalid json')
-      };
-      fs.promises.open.mockResolvedValue(fileHandle);
-      await expect(cookieParser.load()).rejects.toEqual(SyntaxError('Unexpected token i in JSON at position 0'));
+      expect(cookieParser.cookies).toEqual({});
     });
     it('loads and parses cookies successfully', async () => {
       fs.promises.access.mockResolvedValue(true);
       const fileHandle = {
-        readFile: jest.fn().mockResolvedValue(JSON.stringify(cookies))
+        readFile: jest.fn().mockResolvedValue(JSON.stringify(cookies)),
+        close: jest.fn().mockResolvedValue()
       };
       fs.promises.open.mockResolvedValue(fileHandle);
       await expect(cookieParser.load()).resolves.toBeUndefined();
@@ -222,13 +238,14 @@ describe('Cookie Parser', () => {
         name: new Cookie(cookies[0])
       });
     });
-    it('fails when cookie file contains wrong format', async () => {
+    it('keeps empty cookie map when file contains wrong format', async () => {
       fs.promises.access.mockResolvedValue(true);
       const fileHandle = {
-        readFile: jest.fn().mockResolvedValue('true')
+        readFile: jest.fn().mockResolvedValue('true'),
+        close: jest.fn().mockResolvedValue()
       };
       fs.promises.open.mockResolvedValue(fileHandle);
-      await expect(cookieParser.load()).rejects.toEqual(Error('Cookies cannot be loaded'));
+      await expect(cookieParser.load()).resolves.toBeUndefined();
       expect(cookieParser.cookies).toEqual({});
     });
   });
