@@ -30,12 +30,21 @@ rm -r $PTEMPL\_upgrade
 echo "<INFO> installing dependencies"
 npm --prefix $PBIN ci --only=production
 
+echo "<INFO> Preparing plugin log files"
+mkdir -p "$PLOGS"
+touch "$PLOGS/unifi-presence.log" "$PLOGS/unifi-presence-error.log"
+chown -R loxberry:loxberry "$PLOGS"
+echo "$(date '+%Y-%m-%dT%H:%M:%S%z') postupgrade: restarting service" >> "$PLOGS/unifi-presence.log"
+
 echo "<INFO> Sync frontend to classic webroot"
 mkdir -p $PHTML
 cp -p -v -r $PBIN/webfrontend/htmlauth/* $PHTML/
 
 
-echo "<INFO> Start Event App"
-npm --prefix $PBIN start
+echo "<INFO> Stop old Event App"
+su loxberry -c "npm --prefix $PBIN run stop >>$PLOGS/unifi-presence.log 2>>$PLOGS/unifi-presence-error.log || true"
+
+echo "<INFO> Start Event App in background"
+su loxberry -c "nohup npm --prefix $PBIN start >>$PLOGS/unifi-presence.log 2>>$PLOGS/unifi-presence-error.log &"
 
 exit 0;
