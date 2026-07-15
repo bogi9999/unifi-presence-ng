@@ -10,13 +10,6 @@ const configuredBase = () => {
   return window.__UNIFI_PRESENCE_NG_API_BASE__ || null;
 };
 
-const pluginBasePath = () => {
-  if (!isBrowser) return null;
-  const pathname = window.location.pathname || '/';
-  const match = pathname.match(/^\/admin\/(?:express\/)?plugins\/[^/]+/);
-  return match ? match[0] : null;
-};
-
 const protocolForHttp = () => {
   if (!isBrowser) return 'http:';
   if (window.location.protocol === 'https:') return 'https:';
@@ -37,11 +30,6 @@ export const getApiBase = () => {
     return '';
   }
 
-  const pluginBase = pluginBasePath();
-  if (pluginBase && isBrowser) {
-    return `${protocolForHttp()}//${window.location.host}${pluginBase}`;
-  }
-
   return `${protocolForHttp()}//${host()}:3201`;
 };
 
@@ -54,11 +42,6 @@ export const getSocketUrl = () => {
   if (explicit) {
     const wsBase = explicit.replace(/^http/i, 'ws').replace(/\/$/, '');
     return `${wsBase}/api/socket`;
-  }
-
-  const pluginBase = pluginBasePath();
-  if (pluginBase && isBrowser) {
-    return `${protocolForWs()}//${window.location.host}${pluginBase}/api/socket`;
   }
 
   return `${protocolForWs()}//${host()}:3201/api/socket`;
