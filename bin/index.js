@@ -1,11 +1,11 @@
-const _ = require('lodash');
-const UniFiSocket = require('./lib/UniFiSocket');
-const Mqtt = require('./lib/Mqtt');
 const fs = require('fs');
 const path = require('path');
+const _ = require('lodash');
 const http = require('http');
 const ws = require('ws');
 const directories = require('./lib/directories');
+const UniFiSocket = require('./lib/UniFiSocket');
+const Mqtt = require('./lib/Mqtt');
 const { Unauthorized, TwoFactorCodeRequired, Disconnected, Timeout } = require('./lib/errors');
 
 const configFile = `${directories.config}/unifi.json`;
@@ -14,9 +14,6 @@ const globalConfigFile = `${directories.homedir}/config/system/general.json`;
 const subscriptionFile = `${directories.config}/mqtt_subscriptions.cfg`;
 const logFile = path.resolve(directories.logdir, 'unifi-presence.log');
 const errorLogFile = path.resolve(directories.logdir, 'unifi-presence-error.log');
-
-let config = require(configFile);
-let globalConfig = require(globalConfigFile);
 
 const writeServiceLog = (file, parts) => {
   try {
@@ -48,6 +45,45 @@ console.error = (...args) => {
   writeServiceLog(errorLogFile, args);
   originalConsoleError(...args);
 };
+
+const loadJsonFile = (file, fallback = {}) => {
+  try {
+    delete require.cache[require.resolve(file)];
+    return require(file);
+  } catch (error) {
+    console.error(`Failed to load JSON file: ${file}`, error);
+    return fallback;
+  }
+};
+
+let config = loadJsonFile(configFile, {
+  username: '',
+  password: '',
+  ipaddress: '',
+  topic: 'UniFi/clients',
+  site: 'default',
+  autoDetectNative: true,
+  native: true,
+  port: null,
+  mqttMode: 'loxberry',
+  mqttHost: '',
+  mqttPort: 1883,
+  mqttUser: '',
+  mqttPassword: '',
+  mqttClientId: 'UniFiPresenceNG',
+  twoFaEnabled: false,
+  wiredTimeout: 30,
+  clients: []
+});
+let globalConfig = loadJsonFile(globalConfigFile, {});
+
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught exception in service', error);
+});
+
+process.on('unhandledRejection', (error) => {
+  console.error('Unhandled rejection in service', error);
+});
 
 const API_BIND_HOST = process.env.UNIFI_PRESENCE_NG_BIND_HOST || process.env.UNIFI_PRESENCE_NG_HOST || '0.0.0.0';
 const API_SOCKET_HOST = process.env.UNIFI_PRESENCE_NG_SOCKET_HOST || (API_BIND_HOST === '0.0.0.0' ? '127.0.0.1' : API_BIND_HOST);
@@ -439,16 +475,11 @@ const startApiServer = async () => {
 };
 
 fs.watch(configFile, {}, () => {
-  delete require.cache[require.resolve(configFile)];
-  try {
-    config = require(configFile);
-    console.log('load new config');
-    uniFi.setConfig(config);
-    mqtt.setPluginConfig(config);
-    ensureMqttSubscription();
-  } catch {
-    //
-  }
+  config = loadJsonFile(configFile, config);
+  console.log('load new config');
+  uniFi.setConfig(config);
+  mqtt.setPluginConfig(config);
+  ensureMqttSubscription();
 });
 
 const waitForCookieChange = async () => {
@@ -569,8 +600,7 @@ const hasMqttInstalled = async () => {
   if (_.get(globalConfig, 'Mqtt', null) === null) {
     sendStatus(states.NO_MQTT);
     await waitForConfigChange(globalConfigFile);
-    delete require.cache[require.resolve(globalConfigFile)];
-    globalConfig = require(globalConfigFile);
+    globalConfig = loadJsonFile(globalConfigFile, globalConfig);
     return hasMqttInstalled();
   }
   mqtt.setConfig(globalConfig);
