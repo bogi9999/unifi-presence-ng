@@ -36,6 +36,16 @@ run_as_loxberry() {
 echo "<INFO> installing bin dependencies"
 npm --prefix $PBIN ci --only=production
 
+echo "<INFO> Ensure plugin config/data folders"
+mkdir -p "$PCONFIG" "$PDATA"
+if [ ! -f "$PCONFIG/unifi.json" ] && [ -f "$PBIN/../config/unifi.json" ]; then
+    cp -p "$PBIN/../config/unifi.json" "$PCONFIG/unifi.json"
+fi
+if [ ! -f "$PCONFIG/mqtt_subscriptions.cfg" ] && [ -f "$PBIN/../config/mqtt_subscriptions.cfg" ]; then
+    cp -p "$PBIN/../config/mqtt_subscriptions.cfg" "$PCONFIG/mqtt_subscriptions.cfg"
+fi
+chown -R loxberry:loxberry "$PCONFIG" "$PDATA"
+
 echo "<INFO> Preparing plugin log files"
 mkdir -p "$PLOGS"
 touch "$PLOGS/unifi-presence.log" "$PLOGS/unifi-presence-error.log"
@@ -47,6 +57,7 @@ mkdir -p $PHTML
 cp -p -v -r $PHTMLAUTH/* $PHTML/
 
 echo "<INFO> Start Event App in background"
+run_as_loxberry "pkill -f '/plugins/${PDIR}/index.js' >>$PLOGS/unifi-presence.log 2>>$PLOGS/unifi-presence-error.log || true"
 run_as_loxberry "nohup env NODE_ENV=production npm --prefix $PBIN start >>$PLOGS/unifi-presence.log 2>>$PLOGS/unifi-presence-error.log &"
 
 exit 0;

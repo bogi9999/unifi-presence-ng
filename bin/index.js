@@ -14,6 +14,25 @@ const globalConfigFile = `${directories.homedir}/config/system/general.json`;
 const subscriptionFile = `${directories.config}/mqtt_subscriptions.cfg`;
 const logFile = path.resolve(directories.logdir, 'unifi-presence.log');
 const errorLogFile = path.resolve(directories.logdir, 'unifi-presence-error.log');
+const DEFAULT_CONFIG = {
+  username: '',
+  password: '',
+  ipaddress: '',
+  topic: 'UniFi/clients',
+  site: 'default',
+  autoDetectNative: true,
+  native: true,
+  port: null,
+  mqttMode: 'loxberry',
+  mqttHost: '',
+  mqttPort: 1883,
+  mqttUser: '',
+  mqttPassword: '',
+  mqttClientId: 'UniFiPresenceNG',
+  twoFaEnabled: false,
+  wiredTimeout: 30,
+  clients: []
+};
 
 const writeServiceLog = (file, parts) => {
   try {
@@ -50,33 +69,29 @@ console.log('UniFi Presence NG service bootstrap started');
 
 const loadJsonFile = (file, fallback = {}) => {
   try {
-    delete require.cache[require.resolve(file)];
-    return require(file);
+    const content = fs.readFileSync(file, 'utf-8');
+    return JSON.parse(content);
   } catch (error) {
     console.error(`Failed to load JSON file: ${file}`, error);
     return fallback;
   }
 };
 
-let config = loadJsonFile(configFile, {
-  username: '',
-  password: '',
-  ipaddress: '',
-  topic: 'UniFi/clients',
-  site: 'default',
-  autoDetectNative: true,
-  native: true,
-  port: null,
-  mqttMode: 'loxberry',
-  mqttHost: '',
-  mqttPort: 1883,
-  mqttUser: '',
-  mqttPassword: '',
-  mqttClientId: 'UniFiPresenceNG',
-  twoFaEnabled: false,
-  wiredTimeout: 30,
-  clients: []
-});
+const ensureJsonFile = (file, fallback = {}) => {
+  try {
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    if (!fs.existsSync(file)) {
+      fs.writeFileSync(file, `${JSON.stringify(fallback, null, 2)}\n`, 'utf-8');
+      console.log(`Created missing JSON file: ${file}`);
+    }
+  } catch (error) {
+    console.error(`Failed to prepare JSON file: ${file}`, error);
+  }
+};
+
+ensureJsonFile(configFile, DEFAULT_CONFIG);
+
+let config = loadJsonFile(configFile, DEFAULT_CONFIG);
 let globalConfig = loadJsonFile(globalConfigFile, {});
 
 process.on('uncaughtException', (error) => {
@@ -146,6 +161,7 @@ const sendToWebClients = (payload) => {
 const ensureMqttSubscription = async () => {
   if (!config.topic) return;
   try {
+    await fs.promises.mkdir(path.dirname(subscriptionFile), { recursive: true });
     await fs.promises.writeFile(subscriptionFile, `${config.topic}/#`, 'utf-8');
   } catch (error) {
     console.log(`Could not write MQTT subscription file: ${error.message}`);
@@ -476,12 +492,26 @@ const startApiServer = async () => {
   });
 };
 
-fs.watch(configFile, {}, () => {
+const reloadConfig = () => {
   config = loadJsonFile(configFile, config);
   console.log('load new config');
   uniFi.setConfig(config);
   mqtt.setPluginConfig(config);
   ensureMqttSubscription();
+};
+
+let configReloadTimer;
+const scheduleConfigReload = () => {
+  clearTimeout(configReloadTimer);
+  configReloadTimer = setTimeout(reloadConfig, 150);
+};
+
+const watchTarget = fs.existsSync(configFile) ? configFile : path.dirname(configFile);
+fs.watch(watchTarget, {}, (_eventType, filename) => {
+  if (watchTarget !== configFile && filename && filename.toString() !== path.basename(configFile)) {
+    return;
+  }
+  scheduleConfigReload();
 });
 
 const waitForCookieChange = async () => {
