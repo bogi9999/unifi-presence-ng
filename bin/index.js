@@ -19,6 +19,12 @@ let globalConfig = require(globalConfigFile);
 const API_BIND_HOST = process.env.UNIFI_PRESENCE_NG_BIND_HOST || process.env.UNIFI_PRESENCE_NG_HOST || '0.0.0.0';
 const API_SOCKET_HOST = process.env.UNIFI_PRESENCE_NG_SOCKET_HOST || (API_BIND_HOST === '0.0.0.0' ? '127.0.0.1' : API_BIND_HOST);
 const API_PORT = parseInt(process.env.UNIFI_PRESENCE_NG_PORT || '3201', 10);
+const WEB_BASE_PATHS = [
+  '/admin/express/plugins/unifi_presence_ng',
+  '/admin/express/plugins/unifi-presence-ng',
+  '/admin/plugins/unifi_presence_ng',
+  '/admin/plugins/unifi-presence-ng'
+];
 
 const states = {
   WAIT_FOR_CONFIG: 'WAIT_FOR_CONFIG',
@@ -28,7 +34,7 @@ const states = {
   NO_MQTT: 'NO_MQTT',
   LOST: 'LOST'
 };
-let socket, pingInterval, apiServer, webSocketServer, serviceSocket;
+let socket, pingInterval, apiServer, webSocketServers = [], serviceSocket;
 let webClients = new Set();
 let lastServiceStatus = null;
 let currentState = states.DISCONNECTED;
@@ -118,6 +124,42 @@ const sendFile = async (res, file, contentType) => {
   sendText(res, 200, content, contentType);
 };
 
+const normalizeRequestPath = (pathname) => {
+  for (const basePath of WEB_BASE_PATHS) {
+    if (pathname === basePath || pathname.startsWith(`${basePath}/`)) {
+      const stripped = pathname.slice(basePath.length);
+      return {
+        basePath,
+        pathname: stripped ? (stripped.startsWith('/') ? stripped : `/${stripped}`) : '/'
+      };
+    }
+  }
+
+  return { basePath: '', pathname };
+};
+
+const sendIndex = async (res, indexFile, basePath) => {
+  if (!fs.existsSync(indexFile)) {
+    sendText(res, 500, 'Frontend build missing. Run npm run build.');
+    return;
+  }
+
+  if (!basePath) {
+    return sendFile(res, indexFile, 'text/html; charset=utf-8');
+  }
+
+  const indexContent = await fs.promises.readFile(indexFile, 'utf-8');
+  const apiBaseScript = `<script>window.__UNIFI_PRESENCE_NG_API_BASE__ = '${basePath}';</script>`;
+  const withBaseAssets = indexContent
+    .replace(/href="\/assets\//g, `href="${basePath}/assets/`)
+    .replace(/src="\/assets\//g, `src="${basePath}/assets/`);
+  const withInjectedBase = withBaseAssets.includes('</head>')
+    ? withBaseAssets.replace('</head>', `  ${apiBaseScript}\n  </head>`)
+    : `${apiBaseScript}${withBaseAssets}`;
+
+  sendText(res, 200, withInjectedBase, 'text/html; charset=utf-8');
+};
+
 const mimeTypeForPath = (targetPath) => {
   if (targetPath.endsWith('.css')) return 'text/css; charset=utf-8';
   if (targetPath.endsWith('.js')) return 'application/javascript; charset=utf-8';
@@ -160,17 +202,16 @@ const startApiServer = async () => {
   apiServer = http.createServer(async (req, res) => {
     try {
       const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
-      const pathname = url.pathname;
+      const normalized = normalizeRequestPath(url.pathname);
+      const pathname = normalized.pathname;
+      const basePath = normalized.basePath;
 
       if (req.method === 'OPTIONS') {
         return sendText(res, 204, '');
       }
 
       if (pathname === '/' || pathname === '/clients') {
-        if (fs.existsSync(indexFile)) {
-          return sendFile(res, indexFile, 'text/html; charset=utf-8');
-        }
-        return sendText(res, 500, 'Frontend build missing. Run npm run build.');
+        return sendIndex(res, indexFile, basePath);
       }
 
       if (pathname.startsWith('/assets/')) {
@@ -277,9 +318,11 @@ const startApiServer = async () => {
       return sendJson(res, 500, { error: error.message || 'Internal Server Error' });
     }
   });
-  webSocketServer = new ws.WebSocketServer({ server: apiServer, path: '/api/socket' });
+  const socketPaths = ['/api/socket', ...WEB_BASE_PATHS.map((basePath) => `${basePath}/api/socket`)];
+  webSocketServers = socketPaths.map((socketPath) => new ws.WebSocketServer({ server: apiServer, path: socketPath }));
 
-  webSocketServer.on('connection', (webSocket, request) => {
+  const bindSocketHandlers = (server) => {
+    server.on('connection', (webSocket, request) => {
     const isClient = _.get(request, 'headers.sec-websocket-protocol', '') === 'webClient';
 
     if (isClient) {
@@ -328,7 +371,10 @@ const startApiServer = async () => {
     });
 
     webSocket.on('error', () => {});
-  });
+    });
+  };
+
+  webSocketServers.forEach(bindSocketHandlers);
 
   return new Promise((resolve, reject) => {
     apiServer.once('error', reject);
@@ -486,8 +532,10 @@ const shutdown = async () => {
   if (socket) {
     socket.close();
   }
-  if (webSocketServer) {
-    webSocketServer.close();
+  webSocketServers.forEach((server) => server.close());
+  webSocketServers = [];
+  if (serviceSocket) {
+    serviceSocket = null;
   }
   if (apiServer) {
     apiServer.close();

@@ -2,6 +2,13 @@
 
 Fork und Weiterentwicklung von UniFi Presence mit integriertem API/WebSocket-Server (ohne externes Express-Plugin).
 
+Maintainer: bogi9999
+
+## Credits
+
+Dieses Projekt basiert auf der urspruenglichen Arbeit von Lox Your Life (UniFi Presence).
+Die Historie und Ursprungsdokumentation bleiben im Sinne der Transparenz erhalten.
+
 Roadmap und Architektur: siehe architecture.md.
 
 ## Runtime-Kompatibilitaet
