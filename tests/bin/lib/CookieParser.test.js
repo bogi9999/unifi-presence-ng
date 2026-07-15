@@ -124,11 +124,12 @@ describe('Cookie Parser', () => {
       expect(fileHandle.writeFile).toHaveBeenCalledWith('[]', 'UTF-8');
     });
     it('succeeds when the file can be written', async () => {
+      const expires = new Date('2021-03-20 15:09:07');
       cookieParser.cookies = {
         name: new Cookie({
           name: 'name',
           value: 'content=te',
-          expires: new Date('2021-03-20 15:09:07'),
+          expires,
           domain: 'unifi.com',
           path: '/'
         })
@@ -140,10 +141,17 @@ describe('Cookie Parser', () => {
       };
       fs.promises.open.mockResolvedValue(fileHandle);
       await expect(cookieParser.save()).resolves.toBeUndefined();
-      expect(fileHandle.writeFile).toHaveBeenCalledWith(
-        '[{"name":"name","value":"content=te","expires":"2021-03-20T14:09:07.000Z","domain":"unifi.com","path":"/"}]',
-        'UTF-8'
-      );
+      const savedCookies = JSON.parse(fileHandle.writeFile.mock.calls[0][0]);
+      expect(savedCookies).toEqual([
+        {
+          name: 'name',
+          value: 'content=te',
+          expires: expires.toISOString(),
+          domain: 'unifi.com',
+          path: '/'
+        }
+      ]);
+      expect(fileHandle.writeFile.mock.calls[0][1]).toBe('UTF-8');
     });
     it('saves real cookies with string as date', async () => {
       cookieParser.cookies = {
