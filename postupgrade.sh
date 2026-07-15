@@ -30,6 +30,10 @@ rm -r $PTEMPL\_upgrade
 echo "<INFO> installing dependencies"
 npm --prefix $PBIN ci --only=production
 
+echo "<INFO> Sync frontend to classic webroot"
+mkdir -p $PHTML
+cp -p -v -r $PBIN/webfrontend/htmlauth/* $PHTML/
+
 
 echo "<INFO> Start Event App"
 npm --prefix $PBIN start

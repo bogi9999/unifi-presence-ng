@@ -3,10 +3,7 @@
 use CGI;
 
 my $q = CGI->new;
-my $host = $ENV{'HTTP_HOST'} || 'localhost';
-$host =~ s/:.*$//;
-my $scheme = $ENV{'REQUEST_SCHEME'} || 'http';
-my $port = $ENV{'UNIFI_PRESENCE_NG_PORT'} || '3201';
+my $plugin = $ENV{'LBPPLUGINDIR'} || 'unifi_presence_ng';
 
-print $q->header(-status => 307, -location => "$scheme://$host:$port/");
+print $q->header(-status => 307, -location => "/admin/express/plugins/$plugin/");
 

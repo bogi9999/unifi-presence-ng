@@ -6,7 +6,7 @@ import { quasar } from '@quasar/vite-plugin';
 module.exports = defineConfig(({ command, mode }) => {
   const isProduction = mode === 'production';
   return {
-    base: isProduction ? '/' : '',
+    base: isProduction ? './' : '',
     root: 'app',
     write: false,
     plugins: [vue(), quasar({ sassVariables: 'app/quasar.extras.sass', autoImportComponentCase: 'combined' })],
