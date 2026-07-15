@@ -1,6 +1,6 @@
 {
   "name": "unifi-presence-bin",
-  "version": "4.0.0-alpha18",
+  "version": "4.0.0-rc1",
   "description": "",
   "main": "index.js",
   "directories": {
