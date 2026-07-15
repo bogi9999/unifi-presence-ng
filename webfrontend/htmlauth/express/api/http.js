@@ -1,118 +1,71 @@
-// Compare versions like "10.0.156" numerically (major.minor.patch).
-// Returns true if `actual` >= `minimum`.
-const isVersionAtLeast = (actual, minimum) => {
-  if (!actual || !minimum) return false;
+const http = require('http');
 
-  const toParts = (v) =>
-    v.split('.').map((p) => {
-      const n = parseInt(p, 10);
-      return Number.isFinite(n) ? n : 0;
-    });
+const BACKEND_HOST = '127.0.0.1';
+const BACKEND_PORT = 3201;
 
-  const a = toParts(actual);
-  const m = toParts(minimum);
-  const len = Math.max(a.length, m.length);
+const proxyToBackend = (method, endpoint, body = null) => {
+  const payload = body ? JSON.stringify(body) : null;
 
-  for (let i = 0; i < len; i++) {
-    const av = a[i] ?? 0;
-    const mv = m[i] ?? 0;
-    if (av > mv) return true;
-    if (av < mv) return false;
-  }
-  return true; // equal
+  return new Promise((resolve, reject) => {
+    const request = http.request(
+      {
+        host: BACKEND_HOST,
+        port: BACKEND_PORT,
+        method,
+        path: `/api/${endpoint}`,
+        headers: payload
+          ? {
+              'Content-Type': 'application/json',
+              'Content-Length': Buffer.byteLength(payload)
+            }
+          : {}
+      },
+      (response) => {
+        let raw = '';
+        response.on('data', (chunk) => {
+          raw += chunk.toString('utf-8');
+        });
+        response.on('end', () => {
+          resolve({ statusCode: response.statusCode || 500, raw });
+        });
+      }
+    );
+
+    request.on('error', reject);
+    if (payload) {
+      request.write(payload);
+    }
+    request.end();
+  });
 };
 
-const directories = require('../utils/directories')();
-const path = require('path');
-const fileHandler = require('../utils/fileHandler');
-const requestUtils = require('../utils/requestUtils');
-const UniFi = require(path.resolve(directories.bin, './lib/Unifi.js'));
-const { exec } = require('child_process');
-const configFile = `${directories.config}/unifi.json`;
-const subscriptionFile = `${directories.config}/mqtt_subscriptions.cfg`;
-let config = require(configFile);
+const replyWithBackendJson = async (res, method, endpoint, body = null) => {
+  const { statusCode, raw } = await proxyToBackend(method, endpoint, body);
+  let json;
 
-const uniFi = new UniFi({ config, directories });
+  try {
+    json = raw ? JSON.parse(raw) : {};
+  } catch {
+    json = { error: { message: raw || 'Invalid backend response' } };
+  }
+
+  return res.status(statusCode).json(json);
+};
 
 const index = async (req, res) => res.render('index', { title: 'Unifi Presence' });
 
-const getConfig = (req, res) => res.json(config);
-
-const saveConfig = requestUtils.unifiRequestWithError(config, async (req, res) => {
-  const loginRequired = requestUtils.loginRequired(config, req.body);
-  let token = null;
-  if (req.body.token) {
-    token = req.body.token;
-  }
-
-  const hasMqttTopicChanged = !!(req.body.topic !== config.topic);
-  config = Object.assign(config, req.body);
-  delete config.loginRequired;
-  delete config.token;
-
-  await fileHandler.writeJson(configFile, config);
-  uniFi.setConfig(config);
-
-  if (hasMqttTopicChanged) {
-    await fileHandler.write(subscriptionFile, `${config.topic}/#`);
-  }
-
-  if (loginRequired) await uniFi.login(token);
-
-  res.json(config);
-});
-
-const getStats = (_) =>
-  requestUtils.unifiRequestWithError(config, async (req, res) => {
-    const { version, deviceType } = await uniFi.getSysinfo();
-    if (!isVersionAtLeast(version, '6.4.54')) {
-      return res.json({ version, versionError: true });
-    }
-    const health = await uniFi.health();
-    const healthData = _.get(health, 'data', []);
-    const www = _.find(healthData, (d) => _.get(d, 'subsystem', '') === 'www');
-    const wan = _.find(healthData, (d) => _.get(d, 'subsystem', '') === 'wan');
-
-    res.json({
-      version,
-      versionError: false,
-      deviceType,
-      wan: {
-        name: _.get(wan, 'gw_name', ''),
-        status: _.get(wan, 'status', ''),
-        stats: _.get(wan, 'gw_system-stats', '')
-      },
-      www: {
-        isp: _.get(wan, 'isp_name', ''),
-        uptime: _.get(www, 'uptime')
-      }
-    });
-  });
-
-const getClients = requestUtils.unifiRequestWithError(config, async (req, res) => {
-  const clients = await uniFi.getActiveClients();
-  res.json({ clients });
-});
-
-const getSites = requestUtils.unifiRequestWithError(config, async (req, res) => {
-  const sites = await uniFi.getSites();
-  res.json({ sites });
-});
+const getConfig = async (req, res) => replyWithBackendJson(res, 'GET', 'config');
+const saveConfig = async (req, res) => replyWithBackendJson(res, 'PUT', 'config', req.body || {});
+const getStats = async (req, res) => replyWithBackendJson(res, 'GET', 'stats');
+const getClients = async (req, res) => replyWithBackendJson(res, 'GET', 'clients');
+const getSites = async (req, res) => replyWithBackendJson(res, 'GET', 'sites');
 
 const restartService = async (req, res) => {
-  const prom = new Promise((resolve, reject) => {
-    exec(`npm --prefix ${directories.bin} restart`, (error) => {
-      if (error) reject(error);
-      else resolve();
-    });
-  });
   try {
-    await prom;
-    res.status(205);
-    res.end();
-  } catch {
-    res.status(500);
-    res.json({ error: { message: 'restarting the service failed' } });
+    const { statusCode } = await proxyToBackend('POST', 'restartService');
+    return res.sendStatus(statusCode);
+  } catch (error) {
+    return res.status(500).json({ error: { message: error.message || 'restarting the service failed' } });
   }
 };
 

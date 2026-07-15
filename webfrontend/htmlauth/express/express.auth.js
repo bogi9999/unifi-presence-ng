@@ -10,7 +10,7 @@ module.exports = ({ router, expressStatic, _ }) => {
 
   router.get('/api/config', http.getConfig);
   router.put('/api/config', http.saveConfig);
-  router.get('/api/stats', http.getStats(_));
+  router.get('/api/stats', http.getStats);
   router.get('/api/clients', http.getClients);
   router.get('/api/sites', http.getSites);
   router.post('/api/restartService', http.restartService);
