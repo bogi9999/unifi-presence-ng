@@ -431,6 +431,7 @@ const listenToEvents = async () => {
     await uniFi.setup();
     await uniFi.getSysinfo();
     sendStatus(states.CONNECTED);
+    await uniFi.publishInitialStates();
     await uniFi.openClientEvents(config.clients);
   } catch (error) {
     if (error instanceof Unauthorized && !config.twoFaEnabled) {

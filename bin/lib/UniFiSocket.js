@@ -165,7 +165,7 @@ module.exports = class UniFiSocket extends UniFi {
       if (_.isUndefined(client)) return;
       const cloned = _.clone(client);
 
-      if (event.key === ['EVT_WU_Connected', 'EVT_LU_Connected'].includes(event.key)) {
+      if (['EVT_WU_Connected', 'EVT_LU_Connected'].includes(event.key)) {
         client.connected = true;
         if (client.type === 'WIRELESS') {
           client.ssid = event.ssid;
@@ -183,6 +183,28 @@ module.exports = class UniFiSocket extends UniFi {
         this.clients.set(client.mac, client);
       }
     });
+  }
+
+  async publishInitialStates() {
+    const selectedClients = Array.from(this.clients.values());
+    if (_.isEmpty(selectedClients)) {
+      console.log('No watched clients configured - nothing to publish to MQTT');
+      return;
+    }
+
+    const activeClients = await this.getActiveClients();
+    const activeByMac = new Map(activeClients.map((client) => [client.mac, client]));
+
+    selectedClients.forEach((selected) => {
+      const merged = Object.assign({}, selected, activeByMac.get(selected.mac) || {});
+      if (_.isUndefined(merged.connected)) {
+        merged.connected = activeByMac.has(selected.mac);
+      }
+      this.send(merged);
+      this.clients.set(merged.mac, merged);
+    });
+
+    console.log(`Published initial MQTT state for ${selectedClients.length} watched clients`);
   }
 
   async deviceSync(eventData) {

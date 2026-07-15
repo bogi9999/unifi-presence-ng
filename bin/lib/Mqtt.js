@@ -43,17 +43,23 @@ module.exports = class Mqtt {
     const connectUrl = `mqtt://${broker.host}:${broker.port}`;
 
     return new Promise(
-      function (resolve) {
+      function (resolve, reject) {
         this.client = mqtt.connect(connectUrl, {
           username: broker.username,
           password: broker.password,
           clientId: broker.clientId,
           keepalive: 300,
-          reconnectPeriod: 0,
-          queueQoSZero: false
+          reconnectPeriod: 5000,
+          queueQoSZero: true
         });
 
-        this.client.on('connect', resolve);
+        this.client.once('connect', () => {
+          console.log(`MQTT connected to ${connectUrl}`);
+          resolve();
+        });
+        this.client.once('error', (error) => {
+          reject(error);
+        });
         this.client.on('packetreceive', () => {});
       }.bind(this)
     );
@@ -65,8 +71,10 @@ module.exports = class Mqtt {
   }
 
   send(topic, message) {
-    if (_.isNil(this.config)) return;
-    if (!this.client.connected) this.client.reconnect();
+    if (!this.client) return;
+    if (!this.client.connected) {
+      this.client.reconnect();
+    }
     this.client.publish(topic, message);
   }
 };

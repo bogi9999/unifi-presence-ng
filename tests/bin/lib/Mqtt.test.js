@@ -16,6 +16,9 @@ describe('MQTT', () => {
       end: jest.fn().mockName('mqtt.end'),
       publish: jest.fn().mockName('mqtt.publish'),
       reconnect: jest.fn().mockName('mqtt.reconnect'),
+      once: jest.fn().mockImplementation((event, callback) => {
+        if (event === 'connect') callback();
+      }),
       on: jest.fn().mockImplementation((event, callback) => {
         if (event === 'connect') callback();
       }),
@@ -44,8 +47,8 @@ describe('MQTT', () => {
         clientId: 'UniFiPresenceNG',
         keepalive: 300,
         password: 'password',
-        queueQoSZero: false,
-        reconnectPeriod: 0,
+        queueQoSZero: true,
+        reconnectPeriod: 5000,
         username: 'user'
       });
     });
@@ -73,8 +76,8 @@ describe('MQTT', () => {
         clientId: 'custom-client',
         keepalive: 300,
         password: 'custom-password',
-        queueQoSZero: false,
-        reconnectPeriod: 0,
+        queueQoSZero: true,
+        reconnectPeriod: 5000,
         username: 'custom-user'
       });
     });
@@ -92,8 +95,8 @@ describe('MQTT', () => {
     });
   });
   describe('send', () => {
-    it('does not send when the config is empty', () => {
-      mqttInstance.config = null;
+    it('does not send when the client is missing', () => {
+      mqttInstance.client = null;
       mqttInstance.send('foo');
       expect(mqttClient.publish).not.toHaveBeenCalled();
     });

@@ -16,7 +16,7 @@
         :label="$t('UNIFI.MQTT_MODE')"
         :hint="$t('UNIFI.MQTT_MODE_HINT')"
       />
-      <q-input v-if="hasMqtt" name="topic" :ref="formFields.topic" :disable="isSaving || isLoading" :loading="isLoading" v-model="config.topic" :label="$t('UNIFI.TOPIC')" :hint="$t('UNIFI.TOPIC_HINT')" :rules="validationRules.topic" data-role="none" />
+      <q-input name="topic" :ref="formFields.topic" :disable="isSaving || isLoading" :loading="isLoading" v-model="config.topic" :label="$t('UNIFI.TOPIC')" :hint="$t('UNIFI.TOPIC_HINT')" :rules="validationRules.topic" data-role="none" />
       <div v-if="isCustomMqtt">
         <q-input name="mqttHost" :ref="formFields.mqttHost" :disable="isSaving || isLoading" :loading="isLoading" v-model="config.mqttHost" :label="$t('UNIFI.MQTT_HOST')" :rules="validationRules.required" data-role="none" />
         <q-input name="mqttPort" :ref="formFields.mqttPort" :disable="isSaving || isLoading" :loading="isLoading" v-model.number="config.mqttPort" :label="$t('UNIFI.MQTT_PORT')" :rules="validationRules.port" data-role="none" />
@@ -24,9 +24,6 @@
         <q-input name="mqttPassword" :ref="formFields.mqttPassword" :disable="isSaving || isLoading" :loading="isLoading" v-model="config.mqttPassword" :label="$t('UNIFI.MQTT_PASSWORD')" :rules="validationRules.required" data-role="none" />
         <q-input name="mqttClientId" :ref="formFields.mqttClientId" :disable="isSaving || isLoading" :loading="isLoading" v-model="config.mqttClientId" :label="$t('UNIFI.MQTT_CLIENT_ID')" data-role="none" />
       </div>
-      <q-banner v-else rounded class="bg-red text-white q-mt-md">
-        {{$t('UNIFI.NEED_MQTT')}}
-      </q-banner>
       <q-select :ref="formFields.wiredTimeout" v-model="config.wiredTimeout" :disable="isSaving || isLoading" :loading="isLoading" emit-value map-options :options="wiredTimeoutOptions" :label="$t('UNIFI.TIMEOUT_OPTIONS')" :hint="$t('UNIFI.TIMEOUT_OPTIONS_HINT')" />
 
       <div class="text-h5 q-mt-xl self-end">{{$t('UNIFI.CONTROLLER')}}</div>
@@ -102,8 +99,6 @@ export default {
     const sites = computed(() => store.state.Settings.sites);
     const loginError = computed(() => store.state.Settings.loginError);
     const isLoading = computed(() => store.state.Global.loading);
-    const serviceStatus = computed(() => store.state.Settings.serviceStatus);
-    const hasMqtt = computed(() => serviceStatus.value !== 'NO_MQTT' || config.value.mqttMode === 'custom');
     const isCustomMqtt = computed(() => config.value.mqttMode === 'custom');
     const isSaving = ref(false);
     const mqttModeOptions = [
@@ -175,7 +170,6 @@ export default {
       sites,
       versionError,
       version,
-      hasMqtt,
       isCustomMqtt,
       mqttModeOptions,
       wiredTimeoutOptions
