@@ -14,6 +14,7 @@ const globalConfigFile = `${directories.homedir}/config/system/general.json`;
 const subscriptionFile = `${directories.config}/mqtt_subscriptions.cfg`;
 const logFile = path.resolve(directories.logdir, 'unifi-presence.log');
 const errorLogFile = path.resolve(directories.logdir, 'unifi-presence-error.log');
+const lockFile = path.join(directories.data, 'service.lock');
 const DEFAULT_CONFIG = {
   username: '',
   password: '',
@@ -86,6 +87,40 @@ const ensureJsonFile = (file, fallback = {}) => {
     }
   } catch (error) {
     console.error(`Failed to prepare JSON file: ${file}`, error);
+  }
+};
+
+const acquireServiceLock = () => {
+  try {
+    fs.mkdirSync(directories.data, { recursive: true });
+    if (fs.existsSync(lockFile)) {
+      try {
+        const existingPid = parseInt(fs.readFileSync(lockFile, 'utf-8').trim(), 10);
+        if (Number.isFinite(existingPid)) {
+          process.kill(existingPid, 0);
+          console.log(`Service already running with PID ${existingPid}. Exiting duplicate start.`);
+          return false;
+        }
+      } catch {
+        // Stale lock file or unreadable pid; overwrite below.
+      }
+    }
+
+    fs.writeFileSync(lockFile, `${process.pid}\n`, 'utf-8');
+    return true;
+  } catch (error) {
+    console.error('Failed to acquire service lock', error);
+    return true;
+  }
+};
+
+const releaseServiceLock = () => {
+  try {
+    if (fs.existsSync(lockFile)) {
+      fs.unlinkSync(lockFile);
+    }
+  } catch {
+    // Ignore lock cleanup errors during shutdown.
   }
 };
 
@@ -483,16 +518,27 @@ const startApiServer = async () => {
   webSocketServers.forEach(bindSocketHandlers);
 
   return new Promise((resolve, reject) => {
-    apiServer.once('error', reject);
+    const onError = (error) => {
+      if (error && error.code === 'EADDRINUSE') {
+        console.log(`API port ${API_PORT} already in use. Assuming another service instance is active.`);
+        resolve(false);
+        return;
+      }
+      reject(error);
+    };
+
+    apiServer.once('error', onError);
     apiServer.listen(API_PORT, API_BIND_HOST, () => {
+      apiServer.removeListener('error', onError);
       console.log(`API server listening on ${API_BIND_HOST}:${API_PORT}`);
       console.log(`Internal websocket bridge uses ${API_SOCKET_HOST}:${API_PORT}`);
-      resolve();
+      resolve(true);
     });
   });
 };
 
 const reloadConfig = () => {
+  ensureJsonFile(configFile, DEFAULT_CONFIG);
   config = loadJsonFile(configFile, config);
   console.log('load new config');
   uniFi.setConfig(config);
@@ -649,7 +695,16 @@ const eventLoop = async () => {
 };
 
 const main = async () => {
-  await startApiServer();
+  if (!acquireServiceLock()) {
+    return;
+  }
+
+  const apiStarted = await startApiServer();
+  if (!apiStarted) {
+    releaseServiceLock();
+    return;
+  }
+
   openSocket();
   await hasMqttInstalled();
   await ensureMqttSubscription();
@@ -672,10 +727,15 @@ const shutdown = async () => {
     apiServer.close();
   }
   mqtt.disconnect();
+  releaseServiceLock();
   process.exit(0);
 };
 
 process.on('SIGINT', shutdown);
 process.on('SIGTERM', shutdown);
 
-main();
+main().catch((error) => {
+  console.error('Fatal error in service main loop', error);
+  releaseServiceLock();
+  process.exit(1);
+});

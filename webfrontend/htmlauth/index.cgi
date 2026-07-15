@@ -4,20 +4,31 @@ use CGI;
 use strict;
 use warnings;
 
-my $q = CGI->new;
-my $index_file = $ENV{'SCRIPT_FILENAME'} || '';
-$index_file =~ s/index\.cgi$/index.html/;
+use LoxBerry::System;
+use LoxBerry::Web;
+use LoxBerry::Log;
 
-if ($index_file && -f $index_file) {
-	if (open my $fh, '<', $index_file) {
-		local $/;
-		my $content = <$fh>;
-		close $fh;
-		print $q->header(-type => 'text/html', -charset => 'utf-8');
-		print $content;
-		exit 0;
-	}
-}
+my $version = LoxBerry::System::pluginversion();
+my $plugin = $ENV{'LBPPLUGINDIR'} || 'unifi_presence_ng';
+my $log = LoxBerry::Log->new(
+		name => 'index',
+		package => $lbpplugindir,
+		addtime => 1,
+);
 
-print $q->header(-status => 307, -location => '/admin/plugins/unifi_presence_ng/index.html');
+$log->LOGSTART("index.cgi called");
+
+LoxBerry::Web::lbheader("UniFi Presence NG V$version", "https://github.com/bogi9999/unifi-presence-ng", "");
+print LoxBerry::Log::get_notifications_html($lbpplugindir);
+print qq{
+<div style="height: calc(100vh - 190px); min-height: 620px;">
+	<iframe
+		title="UniFi Presence NG"
+		src="/admin/plugins/$plugin/index.html"
+		style="width: 100%; height: 100%; border: 0; background: transparent;"
+		loading="eager"
+	></iframe>
+</div>
+};
+LoxBerry::Web::lbfooter();
 
