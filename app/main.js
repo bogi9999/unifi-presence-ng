@@ -14,8 +14,18 @@ import en from './lang/en';
 import { head } from 'lodash';
 
 const app = createApp(App);
+const detectRouterBase = () => {
+  if (typeof window === 'undefined') return '/';
+
+  const pathname = window.location.pathname || '/';
+  const match = pathname.match(/^\/admin\/(?:express\/)?plugins\/[^/]+\//);
+  if (match) return match[0];
+
+  return '/';
+};
+
 const router = createRouter({
-  history: createWebHistory(),
+  history: createWebHistory(detectRouterBase()),
   routes
 });
 
