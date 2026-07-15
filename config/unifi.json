@@ -1,0 +1,18 @@
+{
+  "username": "",
+  "password": "",
+  "ipaddress": "",
+  "topic": "UniFi/clients",
+  "site": "default",
+  "native": true,
+  "port": null,
+  "mqttMode": "loxberry",
+  "mqttHost": "",
+  "mqttPort": 1883,
+  "mqttUser": "",
+  "mqttPassword": "",
+  "mqttClientId": "UniFiPresenceNG",
+  "twoFaEnabled": false,
+  "wiredTimeout": 30,
+  "clients": []
+}

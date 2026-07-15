@@ -1,0 +1,85 @@
+{
+  "name": "unifi-presence-ng",
+  "version": "4.0.0-alpha1",
+  "description": "",
+  "main": "index.js",
+  "repository": "github:bogi9999/unifi-presence-ng.git",
+  "config": {
+    "eslint": "--ignore-path .gitignore --cache --format=codeframe --max-warnings=0 \"{src,scripts,tests,.github}/**/*.{js,md,html}\" \"*.{js,md,html}\" \".*.{js,md,html}\"",
+    "prettier": "--ignore-path .gitignore --loglevel=warn \"{src,scripts,tests,.github}/**/*.{js,md,yml,json,html}\" \"*.{js,yml,json,html}\" \".*.{js,yml,json,html}\" \"!package-lock.json\"",
+    "release": {
+      "additionalNodeModules": [
+        "bin"
+      ],
+      "additionalCommands": [
+        {
+          "command": "npm run build",
+          "gitFiles": "webfrontend templates"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest test --coverage",
+    "dev": "UNIFI_PRESENCE_NG_PORT=3201 NODE_ENV=development nodemon -w bin -w app -w webfrontend/htmlauth bin/index.js",
+    "app": "vite",
+    "build": "vite build && rm -rf webfrontend/htmlauth/assets && cp -r build/assets webfrontend/htmlauth/assets && cp build/build.html templates/index.hbs && cp build/build.html webfrontend/htmlauth/index.html",
+    "serve": "vite preview",
+    "dev:login": "LBHOMEDIR=$(pwd)/loxberry nodemon -w bin bin/index.js --dev login",
+    "dev:clients": "LBHOMEDIR=$(pwd)/loxberry nodemon -w bin bin/index.js --dev clients",
+    "dev:events": "LBHOMEDIR=$(pwd)/loxberry nodemon -w bin bin/index.js --dev events",
+    "lint": "eslint bin",
+    "prettify": "prettier --write bin",
+    "zip": "rm -f unifi_presence_ng.zip && zip -r unifi_presence_ng.zip . -x \".git/*\" -x \"node_modules/*\" -x \"loxberry/*\" -x \"data/*\" -x \"coverage/*\" -x \"build/*\" -x \"bin/node_modules/*\"",
+    "release:major": "node .github/release.js major false",
+    "release:minor": "node .github/release.js minor false",
+    "release:patch": "node .github/release.js patch false",
+    "pre:major": "node .github/release.js major true",
+    "pre:minor": "node .github/release.js minor true",
+    "pre:patch": "node .github/release.js patch true"
+  },
+  "type": "commonjs",
+  "engines": {
+    "node": ">=22.4.1 <27",
+    "npm": ">=10.8.1 <12"
+  },
+  "author": "Ronald Marske",
+  "license": "ISC",
+  "devDependencies": {
+    "@babel/preset-env": "7.16.11",
+    "@quasar/extras": "1.15.9",
+    "@quasar/vite-plugin": "1.3.0",
+    "@vitejs/plugin-vue": "4.0.0",
+    "@vue/vue3-jest": "29.2.2",
+    "@vueuse/core": "9.9.0",
+    "axios": "1.2.2",
+    "body-parser": "1.20.1",
+    "eslint": "8.30.0",
+    "generate-changelog": "1.8.0",
+    "i18next": "22.4.6",
+    "jayson": "4.0.0",
+    "jest": "29.3.1",
+    "jest-each": "29.3.1",
+    "jest-extended": "3.2.0",
+    "jest-when": "3.5.2",
+    "lodash": "4.17.21",
+    "minimist": "1.2.7",
+    "nock": "13.2.9",
+    "nodemon": "2.0.20",
+    "prettier": "2.8.1",
+    "prompts": "2.4.2",
+    "quasar": "2.11.3",
+    "read-ini-file": "4.0.0",
+    "sass": "1.57.1",
+    "supertest": "6.3.3",
+    "vite": "4.0.3",
+    "vue": "3.2.45",
+    "vue-i18n": "9.2.2",
+    "vue-router": "4.1.6",
+    "vuex": "4.1.0",
+    "write-ini-file": "4.0.1",
+    "ws": "8.11.0"
+  }
+}

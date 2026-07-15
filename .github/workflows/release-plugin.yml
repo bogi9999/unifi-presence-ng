@@ -1,0 +1,48 @@
+name: Build and attach LoxBerry plugin zip to Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web frontend (Vite) into webfrontend/htmlauth/assets
+        run: npm run build
+
+      - name: Create plugin zip
+        run: npm run zip
+
+      - name: Create sha256 checksum
+        run: |
+          sha256sum unifi_presence_ng.zip > unifi_presence_ng.zip.sha256
+
+      - name: Create/Update GitHub Release and upload assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            unifi_presence_ng.zip
+            unifi_presence_ng.zip.sha256
+          generate_release_notes: true
+          prerelease: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
