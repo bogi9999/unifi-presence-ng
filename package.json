@@ -1,6 +1,6 @@
 {
   "name": "unifi-presence-ng",
-  "version": "4.0.0-alpha1",
+  "version": "4.0.0-alpha5",
   "description": "",
   "main": "index.js",
   "repository": "github:bogi9999/unifi-presence-ng.git",
@@ -45,7 +45,7 @@
     "node": ">=22.4.1 <27",
     "npm": ">=10.8.1 <12"
   },
-  "author": "Ronald Marske",
+  "author": "Unifi Presence NG",
   "license": "ISC",
   "devDependencies": {
     "@babel/preset-env": "7.16.11",

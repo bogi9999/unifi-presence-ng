@@ -16,7 +16,8 @@ const subscriptionFile = `${directories.config}/mqtt_subscriptions.cfg`;
 let config = require(configFile);
 let globalConfig = require(globalConfigFile);
 
-const API_HOST = process.env.UNIFI_PRESENCE_NG_HOST || '127.0.0.1';
+const API_BIND_HOST = process.env.UNIFI_PRESENCE_NG_BIND_HOST || process.env.UNIFI_PRESENCE_NG_HOST || '0.0.0.0';
+const API_SOCKET_HOST = process.env.UNIFI_PRESENCE_NG_SOCKET_HOST || (API_BIND_HOST === '0.0.0.0' ? '127.0.0.1' : API_BIND_HOST);
 const API_PORT = parseInt(process.env.UNIFI_PRESENCE_NG_PORT || '3201', 10);
 
 const states = {
@@ -331,8 +332,9 @@ const startApiServer = async () => {
 
   return new Promise((resolve, reject) => {
     apiServer.once('error', reject);
-    apiServer.listen(API_PORT, API_HOST, () => {
-      console.log(`API server listening on ${API_HOST}:${API_PORT}`);
+    apiServer.listen(API_PORT, API_BIND_HOST, () => {
+      console.log(`API server listening on ${API_BIND_HOST}:${API_PORT}`);
+      console.log(`Internal websocket bridge uses ${API_SOCKET_HOST}:${API_PORT}`);
       resolve();
     });
   });
@@ -419,7 +421,7 @@ const ping = () => {
 };
 const openSocket = () => {
   try {
-    socket = new ws.WebSocket(`ws://${API_HOST}:${API_PORT}/api/socket`);
+    socket = new ws.WebSocket(`ws://${API_SOCKET_HOST}:${API_PORT}/api/socket`);
   } catch (error) {
     socket = null;
     setTimeout(openSocket, 5000);
