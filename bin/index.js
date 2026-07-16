@@ -141,8 +141,6 @@ const API_BIND_HOST = process.env.UNIFI_PRESENCE_NG_BIND_HOST || process.env.UNI
 const API_SOCKET_HOST = process.env.UNIFI_PRESENCE_NG_SOCKET_HOST || (API_BIND_HOST === '0.0.0.0' ? '127.0.0.1' : API_BIND_HOST);
 const API_PORT = parseInt(process.env.UNIFI_PRESENCE_NG_PORT || '3201', 10);
 const WEB_BASE_PATHS = [
-  '/admin/express/plugins/unifi_presence_ng',
-  '/admin/express/plugins/unifi-presence-ng',
   '/admin/plugins/unifi_presence_ng',
   '/admin/plugins/unifi-presence-ng'
 ];

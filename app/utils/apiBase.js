@@ -13,7 +13,7 @@ const configuredBase = () => {
 const pluginBasePath = () => {
   if (!isBrowser) return null;
   const pathname = window.location.pathname || '/';
-  const match = pathname.match(/^\/admin\/(?:express\/)?plugins\/[^/]+/);
+  const match = pathname.match(/^\/admin\/plugins\/[^/]+/);
   return match ? match[0] : null;
 };
 
