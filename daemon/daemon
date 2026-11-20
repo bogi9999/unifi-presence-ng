@@ -1,15 +1,6 @@
 #!/bin/bash
-
-PLUGINNAME=REPLACELBPPLUGINDIR
-PATH="/sbin:/bin:/usr/sbin:/usr/bin:$LBHOMEDIR/bin:$LBHOMEDIR/sbin"
-
-ENVIRONMENT=$(cat /etc/environment)
-export $ENVIRONMENT
-
-LOGDIR="$LBPLOG/$PLUGINNAME"
-mkdir -p "$LOGDIR"
-chown -R loxberry:loxberry "$LOGDIR"
-
-su loxberry -c "pkill -f '/plugins/${PLUGINNAME}/index.js' >>$LOGDIR/unifi-presence.log 2>>$LOGDIR/unifi-presence-error.log || true"
-su loxberry -c "NODE_ENV=production npm --prefix $LBHOMEDIR/bin/plugins/${PLUGINNAME} run start >>$LOGDIR/unifi-presence.log 2>>$LOGDIR/unifi-presence-error.log"
+# Wird von LoxBerry beim Systemstart als root ausgeführt.
+set -a; [ -r /etc/environment ] && . /etc/environment; set +a
+LBHOMEDIR=${LBHOMEDIR:-REPLACELBHOMEDIR}
+/bin/bash "$LBHOMEDIR/bin/plugins/unifi_presenceng/service.sh" start
 exit 0

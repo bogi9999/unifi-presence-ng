@@ -1,10 +1,7 @@
-
-node_modules
-loxberry
-build
-coverage
-
-.dev
-data/unifi.*
-#config/unifi.json
-unifi_presence_ng.zip
+dist/
+__pycache__/
+*.pyc
+tests/dev/
+tests/*.pem
+tests/*.log
+tests/*.png

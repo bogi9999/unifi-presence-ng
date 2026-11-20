@@ -1,37 +1,15 @@
-#!/bin/sh
+#!/bin/bash
+# Argumente: $1 Tempordner, $2 Plugin-Name, $3 Plugin-Ordner, $4 Version
+PDIR=$3
+LBHOMEDIR=${LBHOMEDIR:-REPLACELBHOMEDIR}
+BACKUP=/tmp/${PDIR}_upgrade
 
-# To use important variables from command line use the following code:
-COMMAND=$0    # Zero argument is shell command
-PTEMPDIR=$1   # First argument is temp folder during install
-PSHNAME=$2    # Second argument is Plugin-Name for scipts etc.
-PDIR=$3       # Third argument is Plugin installation folder
-PVERSION=$4   # Forth argument is Plugin version
-#LBHOMEDIR=$5 # Comes from /etc/environment now. Fifth argument is
-              # Base folder of LoxBerry
-PTEMPPATH=$6  # Sixth argument is full temp path during install (see also $1)
+echo "<INFO> Stoppe Dienst"
+/bin/bash "$LBHOMEDIR/bin/plugins/$PDIR/service.sh" stop
 
-# Combine them with /etc/environment
-PHTMLAUTH=$LBHOMEDIR/webfrontend/htmlauth/plugins/$PDIR
-PHTML=$LBPHTML/$PDIR
-PTEMPL=$LBPTEMPL/$PDIR
-PDATA=$LBPDATA/$PDIR
-PLOGS=$LBPLOG/$PDIR # Note! This is stored on a Ramdisk now!
-PCONFIG=$LBPCONFIG/$PDIR
-PSBIN=$LBPSBIN/$PDIR
-PBIN=$LBPBIN/$PDIR
-
-echo "<INFO> Creating temporary folders for upgrading"
-mkdir -p $PTEMPL\_upgrade
-mkdir -p $PTEMPL\_upgrade/config
-mkdir -p $PTEMPL\_upgrade/data
-mkdir -p $PTEMPL\_upgrade/log
-
-echo "<INFO> Backing up existing config files"
-cp -p -v -r $PCONFIG $PTEMPL\_upgrade/config
-cp -p -v -r $PDATA $PTEMPL\_upgrade/data
-
-echo "<INFO> Stopping Service"
-pkill -f "$PBIN/index.js" || true
-
-# Exit with Status 0
+echo "<INFO> Sichere Konfiguration und Daten nach $BACKUP"
+rm -rf "$BACKUP"
+mkdir -p "$BACKUP/config" "$BACKUP/data"
+cp -p -r "$LBHOMEDIR/config/plugins/$PDIR/." "$BACKUP/config/" 2>/dev/null
+cp -p -r "$LBHOMEDIR/data/plugins/$PDIR/." "$BACKUP/data/" 2>/dev/null
 exit 0

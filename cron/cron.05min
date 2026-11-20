@@ -1,0 +1,5 @@
+#!/bin/bash
+# Watchdog: startet den Dienst neu, falls er nicht läuft
+LBHOMEDIR=${LBHOMEDIR:-REPLACELBHOMEDIR}
+/bin/bash "$LBHOMEDIR/bin/plugins/unifi_presenceng/service.sh" watchdog > /dev/null 2>&1
+exit 0
