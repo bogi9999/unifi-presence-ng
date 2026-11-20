@@ -50,7 +50,7 @@ $navbar[4]['URL'] = 'index.php?page=log';
 $navbar[$pages[$page]]['active'] = true;
 
 LBWeb::lbheader("Unifi-PresenceNG", "", "help.html");
-$v = '4.2.0';
+$v = '4.3.0';
 ?>
 <link rel="stylesheet" href="style.css?v=<?= $v ?>">
 <div id="upng" data-page="<?= $page ?>" data-version="<?= $v ?>">
