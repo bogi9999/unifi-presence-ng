@@ -1,3 +1,10 @@
+## 4.3.3 (2026-11-20)
+
+* Fix: UDP command recognitions and UDP template in the Loxone tab now use the MQTT gateway format (`MQTT:\iUniFi/clients/<name>/connected=\i\v`) – the previous format did not match
+* Loxone tab: additionally signal dBm, WiFi experience %, access point, WiFi name, IP and names present; texts are marked "HTTP only" (virtual text input)
+* WebSocket: real ping frame instead of a text "ping" (Network 11.x occasionally closed the connection with code 1002)
+* If the controller closes the event connection, it reconnects after 2 seconds and only logs INFO
+
 ## 4.3.2 (2026-11-20)
 
 * Localization completed: error messages of the web interface now come from the language files (German/English)

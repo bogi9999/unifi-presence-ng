@@ -9,7 +9,7 @@ header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 
 const UPNG_PLUGIN = 'unifi_presenceng';
-const UPNG_VERSION = '4.3.2';
+const UPNG_VERSION = '4.3.3';
 const UPNG_RELEASE_CFG = 'https://raw.githubusercontent.com/bogi9999/unifi-presence-ng/main/release.cfg';
 const UPNG_PRERELEASE_CFG = 'https://raw.githubusercontent.com/bogi9999/unifi-presence-ng/main/prerelease.cfg';
 const UPNG_BACKUP_FORMAT = 'unifi-presenceng-backup';

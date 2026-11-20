@@ -623,47 +623,73 @@
       });
     }
     function chosen(v) { var cb = root.querySelector('.lxv[value="' + v + '"]'); return cb && cb.checked; }
+    function isUdp() { return $('lxTransport').value === 'udp'; }
+    /* HTTP: Name des virtuellen Eingangs (Topic + JSON-Feld, "/" und "%" -> "_")
+       UDP:  Befehlserkennung wie im MQTT Gateway: MQTT:\i<Topic>/<JSON-Feld>=\i\v */
+    function httpName(r) { return gwName(r.topic + '/' + r.key); }
+    function udpCheck(r) { return 'MQTT:\\i' + r.topic.replace(/^\/+|\/+$/g, '') + '/' + r.key + '=\\i\\v'; }
+    function rowText(r) { return isUdp() ? udpCheck(r) : httpName(r); }
+    function usable(r) { return !(isUdp() && r.kind === 'text'); }
+    function num(v) { return v === null || v === undefined ? null : v; }
+    function bool(v) { return v === null || v === undefined ? null : (v ? 1 : 0); }
     function buildRows(s) {
       rows = [];
       if (!cfg) return;
-      var base = gwName(cfg.topic || 'UniFi/clients');
+      var base = (cfg.topic || 'UniFi/clients').replace(/^\/+|\/+$/g, '');
       var live = (s && s.clients) || {};
       cfg.clients.forEach(function (c) {
         var label = (c.alias || '').trim() || c.name;
-        var n = base + '_' + mqttName(label), lv = live[c.mac.toLowerCase()] || {};
-        if (chosen('connected')) rows.push({ label: label + ' – ' + t('LOXONE.V_CONNECTED'), name: n + '_connected', analog: false, value: lv.connected === undefined ? null : (lv.connected ? 1 : 0) });
-        if (chosen('signalPercentage') && c.type !== 'WIRED') rows.push({ label: label + ' – ' + t('LOXONE.V_SIGNAL'), name: n + '_signalPercentage', analog: true, value: lv.signalPercentage });
+        var lv = live[c.mac.toLowerCase()] || {};
+        var topic = lv.topic || base + '/' + mqttName(label);
+        var wifi = c.type !== 'WIRED';
+        function add(v, key, kind, value) { if (chosen(v)) rows.push({ label: label + ' – ' + t('LOXONE.V_' + v.toUpperCase()), topic: topic, key: key, kind: kind, value: value }); }
+        add('connected', 'connected', 'digital', bool(lv.connected));
+        if (wifi) {
+          add('signalPercentage', 'signalPercentage', 'analog', num(lv.signalPercentage));
+          add('signalDbm', 'signalDbm', 'analog', num(lv.signalDbm));
+          add('experience', 'experience', 'analog', num(lv.experience));
+          add('ap', 'ap_name', 'text', lv.ap ? lv.ap.name : null);
+          add('ssid', 'ssid', 'text', num(lv.ssid));
+        }
+        add('ip', 'ip', 'text', num(lv.ip));
       });
-      var stopic = (cfg.summaryTopic || '').trim();
+      var stopic = (cfg.summaryTopic || '').trim().replace(/^\/+|\/+$/g, '');
       var sum = s && s.summary;
       if (stopic) {
-        var sb = gwName(stopic);
         if (chosen('summary')) {
-          rows.push({ label: t('LOXONE.ANYONE'), name: sb + '_anyone', analog: false, value: sum ? (sum.anyone ? 1 : 0) : null });
-          rows.push({ label: t('LOXONE.COUNT'), name: sb + '_count', analog: true, value: sum ? sum.count : null });
-          rows.push({ label: t('LOXONE.TOTAL'), name: sb + '_total', analog: true, value: sum ? sum.total : null });
+          rows.push({ label: t('LOXONE.ANYONE'), topic: stopic, key: 'anyone', kind: 'digital', value: sum ? bool(sum.anyone) : null });
+          rows.push({ label: t('LOXONE.COUNT'), topic: stopic, key: 'count', kind: 'analog', value: sum ? sum.count : null });
+          rows.push({ label: t('LOXONE.TOTAL'), topic: stopic, key: 'total', kind: 'analog', value: sum ? sum.total : null });
         }
+        if (chosen('present')) rows.push({ label: t('LOXONE.V_PRESENT'), topic: stopic, key: 'present', kind: 'text', value: sum ? sum.present : null });
         if (chosen('groups') && sum && sum.groups) Object.keys(sum.groups).forEach(function (k) {
           var g = sum.groups[k];
-          rows.push({ label: t('LOXONE.GROUP') + ' ' + g.name + ' – ' + t('LOXONE.ANYONE_SHORT'), name: sb + '_groups_' + k + '_anyone', analog: false, value: g.anyone ? 1 : 0 });
-          rows.push({ label: t('LOXONE.GROUP') + ' ' + g.name + ' – ' + t('LOXONE.COUNT_SHORT'), name: sb + '_groups_' + k + '_count', analog: true, value: g.count });
+          rows.push({ label: t('LOXONE.GROUP') + ' ' + g.name + ' – ' + t('LOXONE.ANYONE_SHORT'), topic: stopic, key: 'groups_' + k + '_anyone', kind: 'digital', value: bool(g.anyone) });
+          rows.push({ label: t('LOXONE.GROUP') + ' ' + g.name + ' – ' + t('LOXONE.COUNT_SHORT'), topic: stopic, key: 'groups_' + k + '_count', kind: 'analog', value: g.count });
+          if (chosen('present')) rows.push({ label: t('LOXONE.GROUP') + ' ' + g.name + ' – ' + t('LOXONE.V_PRESENT'), topic: stopic, key: 'groups_' + k + '_present', kind: 'text', value: g.present });
         });
       }
     }
+    function kindText(r) {
+      if (r.kind === 'text') return isUdp() ? t('LOXONE.TEXT_HTTP_ONLY') : t('LOXONE.TEXT');
+      return r.kind === 'analog' ? t('LOXONE.ANALOG') : t('LOXONE.DIGITAL');
+    }
     function render(s) {
       buildRows(s);
-      var udp = $('lxTransport').value === 'udp';
+      var udp = isUdp();
       $('lxPortRow').classList.toggle('u-hidden', !udp);
       $('btnTemplate').classList.toggle('u-hidden', !udp);
       $('lxTransportHint').textContent = udp ? t('LOXONE.HINT_UDP') : t('LOXONE.HINT_HTTP');
       var tb = $('lxTable').querySelector('tbody');
-      if (!rows.length) { tb.innerHTML = '<tr><td colspan="4" class="u-empty">' + esc(t('LOXONE.NO_ROWS')) + '</td></tr>'; return; }
-      tb.innerHTML = rows.map(function (r, i) {
-        var name = udp ? r.name + '=\\v' : r.name;
-        return '<tr><td>' + esc(r.label) + '</td><td><span class="u-copy"><span class="u-mono">' + esc(name) + '</span>' +
-          '<button type="button" data-copy="' + i + '" data-role="none">' + esc(t('LOXONE.COPY')) + '</button></span></td>' +
-          '<td>' + esc(r.analog ? t('LOXONE.ANALOG') : t('LOXONE.DIGITAL')) + '</td>' +
-          '<td class="u-mono">' + esc(r.value === null || r.value === undefined ? '–' : r.value) + '</td></tr>';
+      if (!rows.length) { tb.innerHTML = '<tr><td colspan="4" class="u-empty">' + esc(t('LOXONE.NO_ROWS')) + '</td></tr>'; }
+      else tb.innerHTML = rows.map(function (r, i) {
+        var ok = usable(r);
+        return '<tr class="' + (ok ? '' : 'offline') + '"><td>' + esc(r.label) + '</td><td>' +
+          (ok ? '<span class="u-copy"><span class="u-mono">' + esc(rowText(r)) + '</span>' +
+            '<button type="button" data-copy="' + i + '" data-role="none">' + esc(t('LOXONE.COPY')) + '</button></span>'
+            : '<span class="u-mono u-muted">' + esc(httpName(r)) + '</span>') + '</td>' +
+          '<td>' + esc(kindText(r)) + '</td>' +
+          '<td class="u-mono">' + esc(r.value === null || r.value === undefined || r.value === '' ? '–' : r.value) + '</td></tr>';
       }).join('');
       var sum = s && s.summary;
       $('lxSummaryTopic').textContent = cfg && cfg.summaryTopic ? cfg.summaryTopic : t('LOXONE.SUMMARY_OFF');
@@ -678,10 +704,10 @@
     function xmlEsc(v) { return String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
     function template() {
       var port = parseInt($('lxPort').value, 10) || 11883;
-      var x = '<?xml version="1.0" encoding="utf-8"?>\n<VirtualInUdp Title="Unifi-PresenceNG" Comment="LoxBerry MQTT Gateway (UDP)" Address="" Port="' + port + '">\n';
-      rows.forEach(function (r) {
-        x += '\t<VirtualInUdpCmd Title="' + xmlEsc(r.label) + '" Comment="' + xmlEsc(r.name) + '" Address="" Check="' + xmlEsc(r.name + '=\\v') +
-          '" Signed="true" Analog="' + (r.analog ? 'true' : 'false') + '" SourceValLow="0" DestValLow="0" SourceValHigh="100" DestValHigh="100" DefVal="0" MinVal="-2147483648" MaxVal="2147483647"/>\n';
+      var x = '<?xml version="1.0" encoding="utf-8"?>\n<VirtualInUdp Title="Unifi-Presence NG" Comment="LoxBerry MQTT Gateway (UDP)" Address="" Port="' + port + '">\n';
+      rows.filter(usable).forEach(function (r) {
+        x += '\t<VirtualInUdpCmd Title="' + xmlEsc(r.label) + '" Comment="' + xmlEsc(r.topic + '/' + r.key) + '" Address="" Check="' + xmlEsc(udpCheck(r)) +
+          '" Signed="true" Analog="' + (r.kind === 'analog' ? 'true' : 'false') + '" SourceValLow="0" DestValLow="0" SourceValHigh="100" DestValHigh="100" DefVal="0" MinVal="-2147483648" MaxVal="2147483647"/>\n';
       });
       return x + '</VirtualInUdp>\n';
     }
@@ -691,15 +717,13 @@
     $('lxTable').addEventListener('click', function (ev) {
       var b = ev.target.closest('button[data-copy]');
       if (!b) return;
-      var r = rows[+b.getAttribute('data-copy')];
-      copyText($('lxTransport').value === 'udp' ? r.name + '=\\v' : r.name).then(function () { b.textContent = t('LOXONE.COPIED'); setTimeout(function () { b.textContent = t('LOXONE.COPY'); }, 1500); });
+      copyText(rowText(rows[+b.getAttribute('data-copy')])).then(function () { b.textContent = t('LOXONE.COPIED'); setTimeout(function () { b.textContent = t('LOXONE.COPY'); }, 1500); });
     });
     $('btnCopyAll').addEventListener('click', function () {
-      var udp = $('lxTransport').value === 'udp';
-      copyText(rows.map(function (r) { return udp ? r.name + '=\\v' : r.name; }).join('\n')).then(function () { msg($('lxMsg'), t('LOXONE.COPIED_ALL'), 'ok'); });
+      copyText(rows.filter(usable).map(rowText).join('\n')).then(function () { msg($('lxMsg'), t('LOXONE.COPIED_ALL'), 'ok'); });
     });
     $('btnTemplate').addEventListener('click', function () {
-      download('VIU_Unifi-PresenceNG.xml', template(), 'application/xml');
+      download('VIU_Unifi-Presence-NG.xml', template(), 'application/xml');
       msg($('lxMsg'), t('LOXONE.TEMPLATE_DONE'), 'ok');
     });
     api('getconfig').then(function (res) {

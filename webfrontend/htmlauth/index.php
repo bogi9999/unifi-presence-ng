@@ -21,7 +21,7 @@ $navbar[$pages[$page]]['active'] = true;
 
 $help = is_readable(upng_template_dir() . "/help/help_" . upng_lang_code() . ".html") ? "help_" . upng_lang_code() . ".html" : "help_en.html";
 LBWeb::lbheader("Unifi-Presence NG", "", $help);
-$v = '4.3.2';
+$v = '4.3.3';
 ?>
 <script>(function () {
   var m = 'dark';
@@ -317,8 +317,14 @@ $v = '4.3.2';
         <label><?php e('LOXONE.VALUES'); ?></label>
         <div class="u-chips">
           <label class="u-chip"><input type="checkbox" class="lxv" value="connected" checked data-role="none"><span><?php e('LOXONE.V_CONNECTED'); ?></span></label>
-          <label class="u-chip"><input type="checkbox" class="lxv" value="signalPercentage" data-role="none"><span><?php e('LOXONE.V_SIGNAL'); ?></span></label>
+          <label class="u-chip"><input type="checkbox" class="lxv" value="signalPercentage" data-role="none"><span><?php e('LOXONE.V_SIGNALPERCENTAGE'); ?></span></label>
+          <label class="u-chip"><input type="checkbox" class="lxv" value="signalDbm" data-role="none"><span><?php e('LOXONE.V_SIGNALDBM'); ?></span></label>
+          <label class="u-chip"><input type="checkbox" class="lxv" value="experience" data-role="none"><span><?php e('LOXONE.V_EXPERIENCE'); ?></span></label>
+          <label class="u-chip"><input type="checkbox" class="lxv" value="ap" data-role="none"><span><?php e('LOXONE.V_AP'); ?></span></label>
+          <label class="u-chip"><input type="checkbox" class="lxv" value="ssid" data-role="none"><span><?php e('LOXONE.V_SSID'); ?></span></label>
+          <label class="u-chip"><input type="checkbox" class="lxv" value="ip" data-role="none"><span><?php e('LOXONE.V_IP'); ?></span></label>
           <label class="u-chip"><input type="checkbox" class="lxv" value="summary" checked data-role="none"><span><?php e('LOXONE.V_SUMMARY'); ?></span></label>
+          <label class="u-chip"><input type="checkbox" class="lxv" value="present" data-role="none"><span><?php e('LOXONE.V_PRESENT'); ?></span></label>
           <label class="u-chip"><input type="checkbox" class="lxv" value="groups" checked data-role="none"><span><?php e('LOXONE.V_GROUPS'); ?></span></label>
         </div>
       </div>

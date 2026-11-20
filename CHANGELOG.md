@@ -1,3 +1,10 @@
+## 4.3.3 (2026-11-20)
+
+* Fix: UDP-Befehlserkennungen und UDP-Vorlage im Loxone-Reiter im Format des MQTT Gateways (`MQTT:\iUniFi/clients/<Name>/connected=\i\v`) – das bisherige Format griff nicht
+* Loxone-Reiter: zusätzlich Signal dBm, WLAN-Erfahrung %, Access Point, WLAN-Name, IP und anwesende Namen; Texte werden als „nur per HTTP“ (virtueller Texteingang) gekennzeichnet
+* WebSocket: echter Ping-Frame statt Text-„ping“ (Network 11.x hat die Verbindung damit gelegentlich mit Code 1002 geschlossen)
+* Schließt der Controller die Event-Verbindung, wird nach 2 Sekunden neu verbunden und nur als INFO geloggt
+
 ## 4.3.2 (2026-11-20)
 
 * Lokalisierung vervollständigt: Fehlermeldungen der Weboberfläche kommen jetzt aus den Sprachdateien (Deutsch/Englisch)

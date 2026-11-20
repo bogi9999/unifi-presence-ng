@@ -44,7 +44,7 @@ import time
 
 PLUGIN = "unifi_presenceng"
 OLD_PLUGIN = "unifi_presence"
-VERSION = "4.3.2"
+VERSION = "4.3.3"
 MIN_CONTROLLER_VERSION = (6, 4, 54)
 
 
@@ -694,6 +694,10 @@ class WebSocket:
     def send_text(self, text):
         self._send_frame(0x1, text.encode("utf-8"))
 
+    def ping(self):
+        """WebSocket-Ping (Steuerframe); der Controller antwortet mit Pong."""
+        self._send_frame(0x9, b"upng")
+
     def _parse(self):
         """Liefert (opcode, fin, payload) oder None wenn der Puffer unvollständig ist."""
         b = self.buf
@@ -1234,9 +1238,11 @@ class Daemon:
         self.tracker = Tracker(self.publish, self.ap_lookup)
 
     # -- Status -------------------------------------------------------------
-    def set_status(self, status, error=None):
+    def set_status(self, status, error=None, quiet=False):
         if status != self.status or error != self.error:
-            if error:
+            if error and quiet:
+                log.info("Status %s: %s", status, error)
+            elif error:
                 log.warning("Status %s: %s", status, error)
             else:
                 log.info("Status %s", status)
@@ -1374,7 +1380,13 @@ class Daemon:
                 self.sleep(3600)
             except ConnectionFailed as e:
                 self.fail_count += 1
-                self.set_status("DISCONNECTED", str(e))
+                # Der Controller schließt die Event-Verbindung gelegentlich selbst (z. B. bei Provisionierung):
+                # beim ersten Mal nur INFO und schnell neu verbinden
+                closed_by_ctl = self.fail_count == 1 and "closed by controller" in str(e)
+                self.set_status("DISCONNECTED", str(e), quiet=closed_by_ctl)
+                if closed_by_ctl:
+                    self.sleep(2)
+                    continue
                 if self.fail_count >= 3 and self.api and self.cfg.get("controllerType") == "auto":
                     self.api.session.controller = None  # neu erkennen
                     self.api.session.save()
@@ -1429,7 +1441,7 @@ class Daemon:
                     self.handle_message(msg)
                 now = time.time()
                 if now - last_ping >= 20:
-                    ws.send_text("ping")
+                    ws.ping()
                     last_ping = now
                 if now - ws.last_rx > 120:
                     raise ConnectionFailed("WebSocket: no data for 120 s")
