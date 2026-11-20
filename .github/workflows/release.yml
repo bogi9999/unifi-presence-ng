@@ -1,7 +1,7 @@
 name: Release
 # Bei jedem Push auf main: prüfen, ZIP bauen und – falls für die Version in plugin.cfg
 # noch kein Release existiert – Tag "v<Version>" + GitHub-Release mit ZIP anlegen.
-# Neue Version: VERSION in plugin.cfg, bin/unifi_presenceng.py, release.cfg/prerelease.cfg
+# Neue Version: VERSION in release.cfg (plugin.cfg zieht der Workflow nach), bin/unifi_presenceng.py, release.cfg/prerelease.cfg
 # und CHANGELOG.md anpassen und auf main pushen.
 on:
   push:
@@ -30,6 +30,17 @@ jobs:
             xargs -a tools/legacy-files.txt git rm -r -q --ignore-unmatch --
             git rm -q tools/legacy-files.txt
             git commit -q -m "Altlasten der Express/Vue-Version entfernt"
+            git push origin HEAD:main
+          fi
+      - name: Version in plugin.cfg aus release.cfg übernehmen
+        run: |
+          V=$(sed -n 's/^VERSION=//p' release.cfg | head -1)
+          if ! grep -qx "VERSION=$V" plugin.cfg; then
+            sed -i "s/^VERSION=.*/VERSION=$V/" plugin.cfg
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add plugin.cfg
+            git commit -q -m "plugin.cfg auf Version $V"
             git push origin HEAD:main
           fi
       - name: Prüfen
