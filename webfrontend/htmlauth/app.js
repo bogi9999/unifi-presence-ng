@@ -1,4 +1,4 @@
-/* Unifi-PresenceNG 4.2 – Weboberfläche (Vanilla JS, keine Build-Kette nötig) */
+/* Unifi-Presence NG 4.3 – Weboberfläche (Vanilla JS, keine Build-Kette nötig) */
 (function () {
   'use strict';
 
@@ -127,6 +127,40 @@
       b.classList.toggle('on', b.getAttribute('data-value') === value);
     });
   }
+
+  /* ------------------------------------------------------------ Hell / Dunkel */
+  var THEMES = ['dark', 'light', 'auto'];
+  var mql = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+  var painted = [];
+  function themeMode() { var m = store('theme'); return THEMES.indexOf(m) === -1 ? 'dark' : m; }
+  function applyTheme() {
+    var mode = themeMode();
+    var dark = mode === 'auto' ? !!(mql && mql.matches) : mode === 'dark';
+    document.documentElement.setAttribute('data-upng-theme', dark ? 'dark' : 'light');
+    root.setAttribute('data-theme-mode', mode);
+    var btn = $('btnTheme');
+    if (btn) btn.title = t('THEME.' + mode.toUpperCase()) + ' – ' + t('THEME.SWITCH');
+    // Hintergrund des LoxBerry-Inhaltsbereichs rund um das Plugin mitfaerben
+    painted.forEach(function (p) { p.el.style.backgroundColor = p.orig; });
+    painted = [];
+    if (!dark) return;
+    var page = getComputedStyle(root).getPropertyValue('--u-page').trim() || '#1c1d20';
+    for (var el = root.parentElement; el && el !== document.documentElement; el = el.parentElement) {
+      var bg = getComputedStyle(el).backgroundColor;
+      if (!bg || bg === 'transparent' || /rgba\(.*,\s*0\)$/.test(bg)) continue;
+      painted.push({ el: el, orig: el.style.backgroundColor });
+      el.style.backgroundColor = page;
+    }
+  }
+  $('btnTheme').addEventListener('click', function () {
+    store('theme', THEMES[(THEMES.indexOf(themeMode()) + 1) % THEMES.length]);
+    applyTheme();
+  });
+  if (mql) {
+    var onScheme = function () { if (themeMode() === 'auto') applyTheme(); };
+    if (mql.addEventListener) mql.addEventListener('change', onScheme); else if (mql.addListener) mql.addListener(onScheme);
+  }
+  applyTheme();
 
   /* ------------------------------------------------------------ Kopfzeile */
   var statusListeners = [];

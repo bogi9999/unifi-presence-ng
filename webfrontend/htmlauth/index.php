@@ -49,9 +49,15 @@ $navbar[4]['Name'] = t('NAV.LOG');
 $navbar[4]['URL'] = 'index.php?page=log';
 $navbar[$pages[$page]]['active'] = true;
 
-LBWeb::lbheader("Unifi-PresenceNG", "", "help.html");
-$v = '4.3.0';
+LBWeb::lbheader("Unifi-Presence NG", "", "help.html");
+$v = '4.3.1';
 ?>
+<script>(function () {
+  var m = 'dark';
+  try { m = JSON.parse(localStorage.getItem('upng.theme')) || 'dark'; } catch (e) { /* Standard */ }
+  var dark = m === 'auto' ? window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches : m === 'dark';
+  document.documentElement.setAttribute('data-upng-theme', dark ? 'dark' : 'light');
+})();</script>
 <link rel="stylesheet" href="style.css?v=<?= $v ?>">
 <div id="upng" data-page="<?= $page ?>" data-version="<?= $v ?>">
 
@@ -64,6 +70,11 @@ $v = '4.3.0';
     <div class="u-head-side">
       <a class="u-badge u-badge-accent u-hidden" id="hUpdate" target="_blank" rel="noopener"></a>
       <span class="u-badge" id="hMqtt">MQTT</span>
+      <button type="button" class="u-iconbtn" id="btnTheme" data-role="none">
+        <svg class="i-dark" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>
+        <svg class="i-light" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+        <svg class="i-auto" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3v18a9 9 0 0 0 0-18z" fill="currentColor"/></svg>
+      </button>
       <button type="button" class="u-iconbtn" id="btnRestart" data-role="none" title="<?php e('STATUS.RESTART'); ?>" aria-label="<?php e('STATUS.RESTART'); ?>">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg>
       </button>

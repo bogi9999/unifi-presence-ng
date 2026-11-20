@@ -1,3 +1,7 @@
+## 4.3.1 (2026-11-20)
+
+* Umschalter Hell/Dunkel vervollständigt (in 4.3.0 fehlte er noch, die Oberfläche blieb hell)
+
 ## 4.3.0 (2026-11-20)
 
 * Neuer Anzeigename „Unifi-Presence NG“ und neues Icon
