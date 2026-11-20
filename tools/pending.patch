@@ -1,0 +1,294 @@
+diff --git a/CHANGELOG.en.md b/CHANGELOG.en.md
+index 91e814c..326b3b0 100644
+--- a/CHANGELOG.en.md
++++ b/CHANGELOG.en.md
+@@ -1 +1,8 @@
++## 4.3.3 (2026-11-20)
++
++* Fix: UDP command recognitions and UDP template in the Loxone tab now use the MQTT gateway format (`MQTT:\iUniFi/clients/<name>/connected=\i\v`) – the previous format did not match
++* Loxone tab: additionally signal dBm, WiFi experience %, access point, WiFi name, IP and names present; texts are marked "HTTP only" (virtual text input)
++* WebSocket: real ping frame instead of a text "ping" (Network 11.x occasionally closed the connection with code 1002)
++* If the controller closes the event connection, it reconnects after 2 seconds and only logs INFO
++
+ ## 4.3.2 (2026-11-20)
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index a4bc5c5..112baaf 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -1 +1,8 @@
++## 4.3.3 (2026-11-20)
++
++* Fix: UDP-Befehlserkennungen und UDP-Vorlage im Loxone-Reiter im Format des MQTT Gateways (`MQTT:\iUniFi/clients/<Name>/connected=\i\v`) – das bisherige Format griff nicht
++* Loxone-Reiter: zusätzlich Signal dBm, WLAN-Erfahrung %, Access Point, WLAN-Name, IP und anwesende Namen; Texte werden als „nur per HTTP“ (virtueller Texteingang) gekennzeichnet
++* WebSocket: echter Ping-Frame statt Text-„ping“ (Network 11.x hat die Verbindung damit gelegentlich mit Code 1002 geschlossen)
++* Schließt der Controller die Event-Verbindung, wird nach 2 Sekunden neu verbunden und nur als INFO geloggt
++
+ ## 4.3.2 (2026-11-20)
+diff --git a/bin/unifi_presenceng.py b/bin/unifi_presenceng.py
+index 4731a0e..4ad379e 100644
+--- a/bin/unifi_presenceng.py
++++ b/bin/unifi_presenceng.py
+@@ -46,3 +46,3 @@ PLUGIN = "unifi_presenceng"
+ OLD_PLUGIN = "unifi_presence"
+-VERSION = "4.3.2"
++VERSION = "4.3.3"
+ MIN_CONTROLLER_VERSION = (6, 4, 54)
+@@ -696,2 +696,6 @@ class WebSocket:
+ 
++    def ping(self):
++        """WebSocket-Ping (Steuerframe); der Controller antwortet mit Pong."""
++        self._send_frame(0x9, b"upng")
++
+     def _parse(self):
+@@ -1236,5 +1240,7 @@ class Daemon:
+     # -- Status -------------------------------------------------------------
+-    def set_status(self, status, error=None):
++    def set_status(self, status, error=None, quiet=False):
+         if status != self.status or error != self.error:
+-            if error:
++            if error and quiet:
++                log.info("Status %s: %s", status, error)
++            elif error:
+                 log.warning("Status %s: %s", status, error)
+@@ -1376,3 +1382,9 @@ class Daemon:
+                 self.fail_count += 1
+-                self.set_status("DISCONNECTED", str(e))
++                # Der Controller schließt die Event-Verbindung gelegentlich selbst (z. B. bei Provisionierung):
++                # beim ersten Mal nur INFO und schnell neu verbinden
++                closed_by_ctl = self.fail_count == 1 and "closed by controller" in str(e)
++                self.set_status("DISCONNECTED", str(e), quiet=closed_by_ctl)
++                if closed_by_ctl:
++                    self.sleep(2)
++                    continue
+                 if self.fail_count >= 3 and self.api and self.cfg.get("controllerType") == "auto":
+@@ -1431,3 +1443,3 @@ class Daemon:
+                 if now - last_ping >= 20:
+-                    ws.send_text("ping")
++                    ws.ping()
+                     last_ping = now
+diff --git a/prerelease.cfg b/prerelease.cfg
+index 9db5b63..84d0eec 100644
+--- a/prerelease.cfg
++++ b/prerelease.cfg
+@@ -1,4 +1,4 @@
+ [AUTOUPDATE]
+-VERSION=4.3.2
+-ARCHIVEURL=https://github.com/bogi9999/unifi-presence-ng/releases/download/v4.3.2/Unifi-PresenceNG-4.3.2.zip
+-INFOURL=https://github.com/bogi9999/unifi-presence-ng/releases/tag/v4.3.2
++VERSION=4.3.3
++ARCHIVEURL=https://github.com/bogi9999/unifi-presence-ng/releases/download/v4.3.3/Unifi-PresenceNG-4.3.3.zip
++INFOURL=https://github.com/bogi9999/unifi-presence-ng/releases/tag/v4.3.3
+diff --git a/release.cfg b/release.cfg
+index 9db5b63..84d0eec 100644
+--- a/release.cfg
++++ b/release.cfg
+@@ -1,4 +1,4 @@
+ [AUTOUPDATE]
+-VERSION=4.3.2
+-ARCHIVEURL=https://github.com/bogi9999/unifi-presence-ng/releases/download/v4.3.2/Unifi-PresenceNG-4.3.2.zip
+-INFOURL=https://github.com/bogi9999/unifi-presence-ng/releases/tag/v4.3.2
++VERSION=4.3.3
++ARCHIVEURL=https://github.com/bogi9999/unifi-presence-ng/releases/download/v4.3.3/Unifi-PresenceNG-4.3.3.zip
++INFOURL=https://github.com/bogi9999/unifi-presence-ng/releases/tag/v4.3.3
+diff --git a/templates/lang/language_de.ini b/templates/lang/language_de.ini
+index 1e5c3e8..63ea67b 100644
+--- a/templates/lang/language_de.ini
++++ b/templates/lang/language_de.ini
+@@ -177,2 +177,11 @@ AWAY="weg seit"
+ [LOXONE]
++V_SIGNALPERCENTAGE="Signal %"
++V_SIGNALDBM="Signal dBm"
++V_EXPERIENCE="WLAN-Erfahrung %"
++V_AP="Access Point (Text)"
++V_SSID="WLAN-Name (Text)"
++V_IP="IP (Text)"
++V_PRESENT="Anwesende Namen (Text)"
++TEXT="Text (virtueller Texteingang)"
++TEXT_HTTP_ONLY="Text – nur per HTTP"
+ SUMMARY_HEAD="Sammelwerte"
+@@ -185,3 +194,2 @@ VALUES="Werte"
+ V_CONNECTED="Online"
+-V_SIGNAL="Signal %"
+ V_SUMMARY="Sammelwerte"
+@@ -201,4 +209,4 @@ ANYONE_SHORT="jemand da"
+ COUNT_SHORT="Anzahl"
+-HINT_UDP="In Loxone Config einen virtuellen UDP-Eingang anlegen bzw. die Vorlage importieren – die Befehlserkennungen sind enthalten."
+-HINT_HTTP="Im Miniserver je Wert einen virtuellen Eingang mit genau diesem Namen anlegen (Standard des MQTT Gateways)."
++HINT_UDP="Einen virtuellen UDP-Eingang mit dem Port des MQTT Gateways anlegen bzw. die Vorlage importieren – die Befehlserkennungen entsprechen denen aus der „Incoming Overview“ des Gateways. Texte lassen sich per UDP nicht übertragen."
++HINT_HTTP="Im Miniserver je Wert einen virtuellen Eingang (Texte: virtueller Texteingang) mit genau diesem Namen anlegen."
+ NO_ROWS="Keine Werte – zuerst Geräte überwachen oder Werte auswählen."
+diff --git a/templates/lang/language_en.ini b/templates/lang/language_en.ini
+index f372c40..1b39140 100644
+--- a/templates/lang/language_en.ini
++++ b/templates/lang/language_en.ini
+@@ -177,2 +177,11 @@ AWAY="away for"
+ [LOXONE]
++V_SIGNALPERCENTAGE="Signal %"
++V_SIGNALDBM="Signal dBm"
++V_EXPERIENCE="WiFi experience %"
++V_AP="Access point (text)"
++V_SSID="WiFi name (text)"
++V_IP="IP (text)"
++V_PRESENT="Names present (text)"
++TEXT="Text (virtual text input)"
++TEXT_HTTP_ONLY="Text – HTTP only"
+ SUMMARY_HEAD="Summary values"
+@@ -185,3 +194,2 @@ VALUES="Values"
+ V_CONNECTED="Online"
+-V_SIGNAL="Signal %"
+ V_SUMMARY="Summary values"
+@@ -201,4 +209,4 @@ ANYONE_SHORT="anyone"
+ COUNT_SHORT="count"
+-HINT_UDP="Create a virtual UDP input in Loxone Config or import the template – the command recognitions are included."
+-HINT_HTTP="Create one virtual input per value on the Miniserver with exactly this name (MQTT gateway default)."
++HINT_UDP="Create a virtual UDP input with the port of the MQTT gateway or import the template – the command recognitions match those of the gateway's “Incoming Overview”. Texts cannot be transferred via UDP."
++HINT_HTTP="Create one virtual input per value on the Miniserver (texts: virtual text input) with exactly this name."
+ NO_ROWS="No values – watch devices or select values first."
+diff --git a/webfrontend/htmlauth/ajax.php b/webfrontend/htmlauth/ajax.php
+index 642e4dc..4b7a8fe 100644
+--- a/webfrontend/htmlauth/ajax.php
++++ b/webfrontend/htmlauth/ajax.php
+@@ -11,3 +11,3 @@ header('Cache-Control: no-store');
+ const UPNG_PLUGIN = 'unifi_presenceng';
+-const UPNG_VERSION = '4.3.2';
++const UPNG_VERSION = '4.3.3';
+ const UPNG_RELEASE_CFG = 'https://raw.githubusercontent.com/bogi9999/unifi-presence-ng/main/release.cfg';
+diff --git a/webfrontend/htmlauth/app.js b/webfrontend/htmlauth/app.js
+index bdd4edb..a154552 100644
+--- a/webfrontend/htmlauth/app.js
++++ b/webfrontend/htmlauth/app.js
+@@ -625,2 +625,11 @@
+     function chosen(v) { var cb = root.querySelector('.lxv[value="' + v + '"]'); return cb && cb.checked; }
++    function isUdp() { return $('lxTransport').value === 'udp'; }
++    /* HTTP: Name des virtuellen Eingangs (Topic + JSON-Feld, "/" und "%" -> "_")
++       UDP:  Befehlserkennung wie im MQTT Gateway: MQTT:\i<Topic>/<JSON-Feld>=\i\v */
++    function httpName(r) { return gwName(r.topic + '/' + r.key); }
++    function udpCheck(r) { return 'MQTT:\\i' + r.topic.replace(/^\/+|\/+$/g, '') + '/' + r.key + '=\\i\\v'; }
++    function rowText(r) { return isUdp() ? udpCheck(r) : httpName(r); }
++    function usable(r) { return !(isUdp() && r.kind === 'text'); }
++    function num(v) { return v === null || v === undefined ? null : v; }
++    function bool(v) { return v === null || v === undefined ? null : (v ? 1 : 0); }
+     function buildRows(s) {
+@@ -628,3 +637,3 @@
+       if (!cfg) return;
+-      var base = gwName(cfg.topic || 'UniFi/clients');
++      var base = (cfg.topic || 'UniFi/clients').replace(/^\/+|\/+$/g, '');
+       var live = (s && s.clients) || {};
+@@ -632,19 +641,30 @@
+         var label = (c.alias || '').trim() || c.name;
+-        var n = base + '_' + mqttName(label), lv = live[c.mac.toLowerCase()] || {};
+-        if (chosen('connected')) rows.push({ label: label + ' – ' + t('LOXONE.V_CONNECTED'), name: n + '_connected', analog: false, value: lv.connected === undefined ? null : (lv.connected ? 1 : 0) });
+-        if (chosen('signalPercentage') && c.type !== 'WIRED') rows.push({ label: label + ' – ' + t('LOXONE.V_SIGNAL'), name: n + '_signalPercentage', analog: true, value: lv.signalPercentage });
++        var lv = live[c.mac.toLowerCase()] || {};
++        var topic = lv.topic || base + '/' + mqttName(label);
++        var wifi = c.type !== 'WIRED';
++        function add(v, key, kind, value) { if (chosen(v)) rows.push({ label: label + ' – ' + t('LOXONE.V_' + v.toUpperCase()), topic: topic, key: key, kind: kind, value: value }); }
++        add('connected', 'connected', 'digital', bool(lv.connected));
++        if (wifi) {
++          add('signalPercentage', 'signalPercentage', 'analog', num(lv.signalPercentage));
++          add('signalDbm', 'signalDbm', 'analog', num(lv.signalDbm));
++          add('experience', 'experience', 'analog', num(lv.experience));
++          add('ap', 'ap_name', 'text', lv.ap ? lv.ap.name : null);
++          add('ssid', 'ssid', 'text', num(lv.ssid));
++        }
++        add('ip', 'ip', 'text', num(lv.ip));
+       });
+-      var stopic = (cfg.summaryTopic || '').trim();
++      var stopic = (cfg.summaryTopic || '').trim().replace(/^\/+|\/+$/g, '');
+       var sum = s && s.summary;
+       if (stopic) {
+-        var sb = gwName(stopic);
+         if (chosen('summary')) {
+-          rows.push({ label: t('LOXONE.ANYONE'), name: sb + '_anyone', analog: false, value: sum ? (sum.anyone ? 1 : 0) : null });
+-          rows.push({ label: t('LOXONE.COUNT'), name: sb + '_count', analog: true, value: sum ? sum.count : null });
+-          rows.push({ label: t('LOXONE.TOTAL'), name: sb + '_total', analog: true, value: sum ? sum.total : null });
++          rows.push({ label: t('LOXONE.ANYONE'), topic: stopic, key: 'anyone', kind: 'digital', value: sum ? bool(sum.anyone) : null });
++          rows.push({ label: t('LOXONE.COUNT'), topic: stopic, key: 'count', kind: 'analog', value: sum ? sum.count : null });
++          rows.push({ label: t('LOXONE.TOTAL'), topic: stopic, key: 'total', kind: 'analog', value: sum ? sum.total : null });
+         }
++        if (chosen('present')) rows.push({ label: t('LOXONE.V_PRESENT'), topic: stopic, key: 'present', kind: 'text', value: sum ? sum.present : null });
+         if (chosen('groups') && sum && sum.groups) Object.keys(sum.groups).forEach(function (k) {
+           var g = sum.groups[k];
+-          rows.push({ label: t('LOXONE.GROUP') + ' ' + g.name + ' – ' + t('LOXONE.ANYONE_SHORT'), name: sb + '_groups_' + k + '_anyone', analog: false, value: g.anyone ? 1 : 0 });
+-          rows.push({ label: t('LOXONE.GROUP') + ' ' + g.name + ' – ' + t('LOXONE.COUNT_SHORT'), name: sb + '_groups_' + k + '_count', analog: true, value: g.count });
++          rows.push({ label: t('LOXONE.GROUP') + ' ' + g.name + ' – ' + t('LOXONE.ANYONE_SHORT'), topic: stopic, key: 'groups_' + k + '_anyone', kind: 'digital', value: bool(g.anyone) });
++          rows.push({ label: t('LOXONE.GROUP') + ' ' + g.name + ' – ' + t('LOXONE.COUNT_SHORT'), topic: stopic, key: 'groups_' + k + '_count', kind: 'analog', value: g.count });
++          if (chosen('present')) rows.push({ label: t('LOXONE.GROUP') + ' ' + g.name + ' – ' + t('LOXONE.V_PRESENT'), topic: stopic, key: 'groups_' + k + '_present', kind: 'text', value: g.present });
+         });
+@@ -652,5 +672,9 @@
+     }
++    function kindText(r) {
++      if (r.kind === 'text') return isUdp() ? t('LOXONE.TEXT_HTTP_ONLY') : t('LOXONE.TEXT');
++      return r.kind === 'analog' ? t('LOXONE.ANALOG') : t('LOXONE.DIGITAL');
++    }
+     function render(s) {
+       buildRows(s);
+-      var udp = $('lxTransport').value === 'udp';
++      var udp = isUdp();
+       $('lxPortRow').classList.toggle('u-hidden', !udp);
+@@ -659,9 +683,11 @@
+       var tb = $('lxTable').querySelector('tbody');
+-      if (!rows.length) { tb.innerHTML = '<tr><td colspan="4" class="u-empty">' + esc(t('LOXONE.NO_ROWS')) + '</td></tr>'; return; }
+-      tb.innerHTML = rows.map(function (r, i) {
+-        var name = udp ? r.name + '=\\v' : r.name;
+-        return '<tr><td>' + esc(r.label) + '</td><td><span class="u-copy"><span class="u-mono">' + esc(name) + '</span>' +
+-          '<button type="button" data-copy="' + i + '" data-role="none">' + esc(t('LOXONE.COPY')) + '</button></span></td>' +
+-          '<td>' + esc(r.analog ? t('LOXONE.ANALOG') : t('LOXONE.DIGITAL')) + '</td>' +
+-          '<td class="u-mono">' + esc(r.value === null || r.value === undefined ? '–' : r.value) + '</td></tr>';
++      if (!rows.length) { tb.innerHTML = '<tr><td colspan="4" class="u-empty">' + esc(t('LOXONE.NO_ROWS')) + '</td></tr>'; }
++      else tb.innerHTML = rows.map(function (r, i) {
++        var ok = usable(r);
++        return '<tr class="' + (ok ? '' : 'offline') + '"><td>' + esc(r.label) + '</td><td>' +
++          (ok ? '<span class="u-copy"><span class="u-mono">' + esc(rowText(r)) + '</span>' +
++            '<button type="button" data-copy="' + i + '" data-role="none">' + esc(t('LOXONE.COPY')) + '</button></span>'
++            : '<span class="u-mono u-muted">' + esc(httpName(r)) + '</span>') + '</td>' +
++          '<td>' + esc(kindText(r)) + '</td>' +
++          '<td class="u-mono">' + esc(r.value === null || r.value === undefined || r.value === '' ? '–' : r.value) + '</td></tr>';
+       }).join('');
+@@ -680,6 +706,6 @@
+       var port = parseInt($('lxPort').value, 10) || 11883;
+-      var x = '<?xml version="1.0" encoding="utf-8"?>\n<VirtualInUdp Title="Unifi-PresenceNG" Comment="LoxBerry MQTT Gateway (UDP)" Address="" Port="' + port + '">\n';
+-      rows.forEach(function (r) {
+-        x += '\t<VirtualInUdpCmd Title="' + xmlEsc(r.label) + '" Comment="' + xmlEsc(r.name) + '" Address="" Check="' + xmlEsc(r.name + '=\\v') +
+-          '" Signed="true" Analog="' + (r.analog ? 'true' : 'false') + '" SourceValLow="0" DestValLow="0" SourceValHigh="100" DestValHigh="100" DefVal="0" MinVal="-2147483648" MaxVal="2147483647"/>\n';
++      var x = '<?xml version="1.0" encoding="utf-8"?>\n<VirtualInUdp Title="Unifi-Presence NG" Comment="LoxBerry MQTT Gateway (UDP)" Address="" Port="' + port + '">\n';
++      rows.filter(usable).forEach(function (r) {
++        x += '\t<VirtualInUdpCmd Title="' + xmlEsc(r.label) + '" Comment="' + xmlEsc(r.topic + '/' + r.key) + '" Address="" Check="' + xmlEsc(udpCheck(r)) +
++          '" Signed="true" Analog="' + (r.kind === 'analog' ? 'true' : 'false') + '" SourceValLow="0" DestValLow="0" SourceValHigh="100" DestValHigh="100" DefVal="0" MinVal="-2147483648" MaxVal="2147483647"/>\n';
+       });
+@@ -693,11 +719,9 @@
+       if (!b) return;
+-      var r = rows[+b.getAttribute('data-copy')];
+-      copyText($('lxTransport').value === 'udp' ? r.name + '=\\v' : r.name).then(function () { b.textContent = t('LOXONE.COPIED'); setTimeout(function () { b.textContent = t('LOXONE.COPY'); }, 1500); });
++      copyText(rowText(rows[+b.getAttribute('data-copy')])).then(function () { b.textContent = t('LOXONE.COPIED'); setTimeout(function () { b.textContent = t('LOXONE.COPY'); }, 1500); });
+     });
+     $('btnCopyAll').addEventListener('click', function () {
+-      var udp = $('lxTransport').value === 'udp';
+-      copyText(rows.map(function (r) { return udp ? r.name + '=\\v' : r.name; }).join('\n')).then(function () { msg($('lxMsg'), t('LOXONE.COPIED_ALL'), 'ok'); });
++      copyText(rows.filter(usable).map(rowText).join('\n')).then(function () { msg($('lxMsg'), t('LOXONE.COPIED_ALL'), 'ok'); });
+     });
+     $('btnTemplate').addEventListener('click', function () {
+-      download('VIU_Unifi-PresenceNG.xml', template(), 'application/xml');
++      download('VIU_Unifi-Presence-NG.xml', template(), 'application/xml');
+       msg($('lxMsg'), t('LOXONE.TEMPLATE_DONE'), 'ok');
+diff --git a/webfrontend/htmlauth/index.php b/webfrontend/htmlauth/index.php
+index 2ca0a93..a6782af 100644
+--- a/webfrontend/htmlauth/index.php
++++ b/webfrontend/htmlauth/index.php
+@@ -23,3 +23,3 @@ $help = is_readable(upng_template_dir() . "/help/help_" . upng_lang_code() . ".h
+ LBWeb::lbheader("Unifi-Presence NG", "", $help);
+-$v = '4.3.2';
++$v = '4.3.3';
+ ?>
+@@ -319,4 +319,10 @@ $v = '4.3.2';
+           <label class="u-chip"><input type="checkbox" class="lxv" value="connected" checked data-role="none"><span><?php e('LOXONE.V_CONNECTED'); ?></span></label>
+-          <label class="u-chip"><input type="checkbox" class="lxv" value="signalPercentage" data-role="none"><span><?php e('LOXONE.V_SIGNAL'); ?></span></label>
++          <label class="u-chip"><input type="checkbox" class="lxv" value="signalPercentage" data-role="none"><span><?php e('LOXONE.V_SIGNALPERCENTAGE'); ?></span></label>
++          <label class="u-chip"><input type="checkbox" class="lxv" value="signalDbm" data-role="none"><span><?php e('LOXONE.V_SIGNALDBM'); ?></span></label>
++          <label class="u-chip"><input type="checkbox" class="lxv" value="experience" data-role="none"><span><?php e('LOXONE.V_EXPERIENCE'); ?></span></label>
++          <label class="u-chip"><input type="checkbox" class="lxv" value="ap" data-role="none"><span><?php e('LOXONE.V_AP'); ?></span></label>
++          <label class="u-chip"><input type="checkbox" class="lxv" value="ssid" data-role="none"><span><?php e('LOXONE.V_SSID'); ?></span></label>
++          <label class="u-chip"><input type="checkbox" class="lxv" value="ip" data-role="none"><span><?php e('LOXONE.V_IP'); ?></span></label>
+           <label class="u-chip"><input type="checkbox" class="lxv" value="summary" checked data-role="none"><span><?php e('LOXONE.V_SUMMARY'); ?></span></label>
++          <label class="u-chip"><input type="checkbox" class="lxv" value="present" data-role="none"><span><?php e('LOXONE.V_PRESENT'); ?></span></label>
+           <label class="u-chip"><input type="checkbox" class="lxv" value="groups" checked data-role="none"><span><?php e('LOXONE.V_GROUPS'); ?></span></label>
