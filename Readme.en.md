@@ -5,7 +5,7 @@
 Presence detection via the UniFi Network controller – published via MQTT for Loxone.
 Successor of "Unifi Presence" 3.0.1 (Lox Your Life).
 
-Documentation: [LoxBerry wiki](https://wiki.loxberry.de/plugins/unifi_presence_ng/start) (German) · Changelog: [English](CHANGELOG.en.md) / [Deutsch](CHANGELOG.md)
+Documentation: [LoxBerry wiki](https://wiki.loxberry.de/en/plugins/unifi_presence_ng/start) ([Deutsch](https://wiki.loxberry.de/plugins/unifi_presence_ng/start)) · Changelog: [English](CHANGELOG.en.md) / [Deutsch](CHANGELOG.md)
 
 ## What's new compared to Unifi Presence 3.x
 
