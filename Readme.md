@@ -1,7 +1,11 @@
 # Unifi-Presence NG (LoxBerry Plugin)
 
+**Deutsch** · [English](Readme.en.md)
+
 Anwesenheitserkennung über den UniFi Network Controller – Ausgabe per MQTT für Loxone.
 Weiterentwicklung von „Unifi Presence“ 3.0.1 (Lox Your Life).
+
+Dokumentation: [LoxBerry-Wiki](https://wiki.loxberry.de/plugins/unifi_presence_ng/start) · Changelog: [Deutsch](CHANGELOG.md) / [English](CHANGELOG.en.md)
 
 ## Was ist neu gegenüber Unifi Presence 3.x
 
@@ -9,7 +13,7 @@ Weiterentwicklung von „Unifi Presence“ 3.0.1 (Lox Your Life).
   Weboberfläche in PHP. Läuft auf **LoxBerry 3 (Debian 12)** und **LoxBerry 4 (Debian 13 „Trixie“)**.
 * **Automatische Controller-Erkennung**: UniFi OS Konsolen (Port 443), **UniFi OS Server (Port 11443)**
   und klassische Network Application (Port 8443). Eigener Port ist weiterhin möglich.
-* **Network 9.x / 10.x** werden unterstützt – die Versionsprüfung vergleicht jetzt numerisch
+* **Network 9.x, 10.x und 11.x** werden unterstützt – die Versionsprüfung vergleicht jetzt numerisch
   (im alten Plugin war `"10.0.x" < "6.4.54"` als Text-Vergleich wahr und hat den Controller abgelehnt).
 * Live-Events per WebSocket **plus** regelmäßiger Abgleich mit der Liste aktiver Clients
   (Offline-Erkennung auch, wenn ein Event verloren geht).
@@ -20,6 +24,7 @@ Weiterentwicklung von „Unifi Presence“ 3.0.1 (Lox Your Life).
 * **Loxone-Tab**: Namen der virtuellen Eingänge bzw. UDP-Befehlserkennungen zum Kopieren, Vorlage für einen virtuellen UDP-Eingang.
 * **Sicherung**: Einstellungen passwortgeschützt (AES-256-GCM) exportieren und auf einem anderen LoxBerry importieren.
 * **Hell/Dunkel**: dunkles Design als Standard, umschaltbar im Statuskopf.
+* Oberfläche auf **Deutsch und Englisch** (folgt der LoxBerry-Sprache), Log auf Englisch.
 * Optional: MQTT „retained“, eigener MQTT-Name je Gerät, Geräte per MAC manuell hinzufügen, Log-Ansicht.
 * Einstellungen aus „Unifi Presence“ werden bei der Installation automatisch übernommen.
 
@@ -66,7 +71,8 @@ hochladen (oder URL des ZIPs eintragen). Updates kommen danach automatisch über
 |---|---|
 | `bin/unifi_presenceng.py` | Hintergrunddienst + CLI (UniFi-API, WebSocket, MQTT) |
 | `bin/service.sh` | Start/Stopp/Watchdog |
-| `webfrontend/htmlauth/` | Weboberfläche (`index.php`, `ajax.php`, `app.js`, `style.css`) |
+| `webfrontend/htmlauth/` | Weboberfläche (`index.php`, `ajax.php`, `lang.php`, `app.js`, `style.css`) |
+| `templates/lang/`, `templates/help/` | Sprachdateien und Hilfe (Deutsch/Englisch) |
 | `daemon/daemon` | Start beim Booten |
 | `cron/cron.05min` | Watchdog |
 | `tools/sync.sh`, `tools/check.sh`, `tools/build.sh` | Version übertragen, Syntaxprüfung, ZIP bauen |
@@ -74,11 +80,12 @@ hochladen (oder URL des ZIPs eintragen). Updates kommen danach automatisch über
 
 ## Release erstellen
 
-1. Version in `release.cfg`/`prerelease.cfg` und `CHANGELOG.md` anpassen
+1. Version in `release.cfg`/`prerelease.cfg` anpassen und den Eintrag in `CHANGELOG.md` und `CHANGELOG.en.md` ergänzen
 2. auf `main` pushen
 3. Der Workflow überträgt mit `tools/sync.sh` die Version in `plugin.cfg`, Dienst und Weboberfläche, setzt den Titel aus
    `tools/plugin-meta.cfg`, erzeugt die Icons aus `icons/src/icon.svg`,
    prüft, baut `Unifi-PresenceNG-<Version>.zip` und legt Tag + Release an, falls es die Version noch nicht gibt.
+   Die Release-Notizen enthalten den deutschen und den englischen Changelog-Eintrag.
 
 ## Lizenz / Herkunft
 

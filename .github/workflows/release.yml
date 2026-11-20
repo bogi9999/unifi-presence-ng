@@ -72,7 +72,11 @@ jobs:
           fi
           PRE=""
           case "$V" in *-*) PRE="--prerelease" ;; esac
-          NOTES=$(awk 'NR==1,/^## / {next} /^## /{exit} {print}' CHANGELOG.md)
+          section() { if [ -f "$1" ]; then awk 'NR==1,/^## / {next} /^## /{exit} {print}' "$1"; fi; }
+          NOTES_DE=$(section CHANGELOG.md)
+          NOTES_EN=$(section CHANGELOG.en.md)
+          NOTES="$NOTES_DE"
+          [ -n "$NOTES_EN" ] && NOTES=$(printf '%s\n\n---\n\n**English**\n%s\n' "$NOTES_DE" "$NOTES_EN")
           [ -z "$NOTES" ] && NOTES="Siehe CHANGELOG.md"
           gh release create "v$V" "$ZIP" --target "$(git rev-parse HEAD)" \
             --title "Unifi-PresenceNG $V" --notes "$NOTES" $PRE
