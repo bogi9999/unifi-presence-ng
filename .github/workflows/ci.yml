@@ -12,4 +12,6 @@ jobs:
         with:
           node-version: 20
       - name: Syntaxprüfung
-        run: bash tools/check.sh
+        run: |
+          bash tools/sync.sh
+          bash tools/check.sh

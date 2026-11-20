@@ -1,4 +1,4 @@
-# Unifi-PresenceNG (LoxBerry Plugin)
+# Unifi-Presence NG (LoxBerry Plugin)
 
 Anwesenheitserkennung über den UniFi Network Controller – Ausgabe per MQTT für Loxone.
 Weiterentwicklung von „Unifi Presence“ 3.0.1 (Lox Your Life).
@@ -19,6 +19,7 @@ Weiterentwicklung von „Unifi Presence“ 3.0.1 (Lox Your Life).
 * **Sammelwerte**: `UniFi/presence` mit `anyone`, `count`, `total` und Gruppen (z. B. Familie, Gäste).
 * **Loxone-Tab**: Namen der virtuellen Eingänge bzw. UDP-Befehlserkennungen zum Kopieren, Vorlage für einen virtuellen UDP-Eingang.
 * **Sicherung**: Einstellungen passwortgeschützt (AES-256-GCM) exportieren und auf einem anderen LoxBerry importieren.
+* **Hell/Dunkel**: dunkles Design als Standard, umschaltbar im Statuskopf.
 * Optional: MQTT „retained“, eigener MQTT-Name je Gerät, Geräte per MAC manuell hinzufügen, Log-Ansicht.
 * Einstellungen aus „Unifi Presence“ werden bei der Installation automatisch übernommen.
 
@@ -68,14 +69,16 @@ hochladen (oder URL des ZIPs eintragen). Updates kommen danach automatisch über
 | `webfrontend/htmlauth/` | Weboberfläche (`index.php`, `ajax.php`, `app.js`, `style.css`) |
 | `daemon/daemon` | Start beim Booten |
 | `cron/cron.05min` | Watchdog |
-| `tools/check.sh`, `tools/build.sh` | Syntaxprüfung, ZIP bauen |
+| `tools/sync.sh`, `tools/check.sh`, `tools/build.sh` | Version übertragen, Syntaxprüfung, ZIP bauen |
 | `tests/fake_env.py` | simulierter Controller + MQTT-Broker |
 
 ## Release erstellen
 
-1. Version in `plugin.cfg`, `bin/unifi_presenceng.py`, `webfrontend/htmlauth/ajax.php` + `index.php`, `release.cfg`/`prerelease.cfg` und `CHANGELOG.md` anpassen
+1. Version in `release.cfg`/`prerelease.cfg` und `CHANGELOG.md` anpassen
 2. auf `main` pushen
-3. Der Workflow prüft, baut `Unifi-PresenceNG-<Version>.zip` und legt Tag + Release an, falls es die Version noch nicht gibt.
+3. Der Workflow überträgt mit `tools/sync.sh` die Version in `plugin.cfg`, Dienst und Weboberfläche, setzt den Titel aus
+   `tools/plugin-meta.cfg`, erzeugt die Icons aus `icons/src/icon.svg`,
+   prüft, baut `Unifi-PresenceNG-<Version>.zip` und legt Tag + Release an, falls es die Version noch nicht gibt.
 
 ## Lizenz / Herkunft
 

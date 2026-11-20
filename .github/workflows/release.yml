@@ -1,8 +1,8 @@
 name: Release
 # Bei jedem Push auf main: prüfen, ZIP bauen und – falls für die Version in plugin.cfg
 # noch kein Release existiert – Tag "v<Version>" + GitHub-Release mit ZIP anlegen.
-# Neue Version: VERSION in release.cfg (plugin.cfg zieht der Workflow nach), bin/unifi_presenceng.py, release.cfg/prerelease.cfg
-# und CHANGELOG.md anpassen und auf main pushen.
+# Neue Version: VERSION in release.cfg/prerelease.cfg und CHANGELOG.md anpassen und auf main pushen.
+# tools/sync.sh überträgt die Version in plugin.cfg, Dienst und Weboberfläche und erzeugt die Icons.
 on:
   push:
     branches: [main]
@@ -32,15 +32,15 @@ jobs:
             git commit -q -m "Altlasten der Express/Vue-Version entfernt"
             git push origin HEAD:main
           fi
-      - name: Version in plugin.cfg aus release.cfg übernehmen
+      - name: Version, Titel und Icons übernehmen (tools/sync.sh)
         run: |
-          V=$(sed -n 's/^VERSION=//p' release.cfg | head -1)
-          if ! grep -qx "VERSION=$V" plugin.cfg; then
-            sed -i "s/^VERSION=.*/VERSION=$V/" plugin.cfg
+          command -v rsvg-convert >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq librsvg2-bin >/dev/null; }
+          V=$(bash tools/sync.sh)
+          if [ -n "$(git status --porcelain)" ]; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add plugin.cfg
-            git commit -q -m "plugin.cfg auf Version $V"
+            git add -A
+            git commit -q -m "Version $V in alle Dateien übernommen, Icons erzeugt"
             git push origin HEAD:main
           fi
       - name: Prüfen

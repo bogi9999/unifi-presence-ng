@@ -1,3 +1,8 @@
+## 4.3.0 (2026-11-20)
+
+* Neuer Anzeigename „Unifi-Presence NG“ und neues Icon
+* Dunkles Design (Standard), umschaltbar Dunkel / Hell / wie System über den Knopf im Statuskopf – die Wahl wird im Browser gespeichert
+
 ## 4.2.0 (2026-11-20)
 
 * Neues Design: Statuskopf mit Kennzahlen, Anwesenheitsübersicht, einklappbare Abschnitte, Umschalter, Speichern-Leiste nur bei Änderungen
