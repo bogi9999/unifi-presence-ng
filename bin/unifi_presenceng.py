@@ -44,7 +44,7 @@ import time
 
 PLUGIN = "unifi_presenceng"
 OLD_PLUGIN = "unifi_presence"
-VERSION = "4.1.0"
+VERSION = "4.2.0"
 MIN_CONTROLLER_VERSION = (6, 4, 54)
 
 
@@ -90,6 +90,7 @@ DEFAULT_CONFIG = {
     "site": "default",
     "twoFaEnabled": False,
     "topic": "UniFi/clients",
+    "summaryTopic": "UniFi/presence",
     "retain": False,
     "wiredTimeout": 60,
     "pollInterval": 30,
@@ -198,6 +199,14 @@ def signal_percentage(dbm):
         return 0
     idx = min(100, -dbm) - 1
     return SIGNAL_TABLE[idx]
+
+
+def group_key(name):
+    """Gruppenname als MQTT-/Loxone-tauglicher Schlüssel (Umlaute umschreiben)."""
+    n = str(name or "")
+    for a, b in (("ä", "ae"), ("ö", "oe"), ("ü", "ue"), ("Ä", "Ae"), ("Ö", "Oe"), ("Ü", "Ue"), ("ß", "ss")):
+        n = n.replace(a, b)
+    return mqtt_name(n)
 
 
 def mqtt_name(name):
@@ -986,7 +995,14 @@ class Tracker:
         self.states = {}
         self.internal = {}
         self.published = {}
+        self.summary_published = None
+        self.summary_changed = None
         self.cfg = {}
+
+    def reset_published(self):
+        """Nach (Re-)Connect alle Zustände und Sammelwerte erneut senden."""
+        self.published.clear()
+        self.summary_published = None
 
     def set_config(self, cfg):
         self.cfg = cfg
@@ -1124,7 +1140,7 @@ class Tracker:
                 self._set_connected(st, False)
                 self.flush(mac)
 
-    def flush(self, mac, force=False):
+    def flush(self, mac, force=False, summary=True):
         st = self.states.get(mac)
         if st is None:
             return
@@ -1134,10 +1150,64 @@ class Tracker:
         if force or self.published.get(mac) != snapshot:
             if self.publish_fn(topic, payload):
                 self.published[mac] = snapshot
+        if summary:
+            self.publish_summary()
 
     def flush_all(self, force=False):
         for mac in list(self.states):
-            self.flush(mac, force=force)
+            self.flush(mac, force=force, summary=False)
+        self.publish_summary(force=force)
+
+    # -- Sammelwerte ----------------------------------------------------------
+    def is_person(self, mac):
+        """Zählt das Gerät für 'jemand zu Hause'? Standard: WLAN ja, LAN nein."""
+        flag = self.watched.get(mac, {}).get("person")
+        if flag is None:
+            return self.states[mac]["type"] == "WIRELESS"
+        return bool(flag)
+
+    def summary(self):
+        present, total, groups = [], 0, {}
+        for mac, st in self.states.items():
+            entry = self.watched.get(mac, {})
+            for g in [x.strip() for x in str(entry.get("group") or "").split(",") if x.strip()]:
+                grp = groups.setdefault(g, {"anyone": False, "count": 0, "total": 0, "names": []})
+                grp["total"] += 1
+                if st["connected"]:
+                    grp["count"] += 1
+                    grp["anyone"] = True
+                    grp["names"].append(st["name"])
+            if not self.is_person(mac):
+                continue
+            total += 1
+            if st["connected"]:
+                present.append(st["name"])
+        return {
+            "anyone": bool(present),
+            "count": len(present),
+            "total": total,
+            "present": ", ".join(sorted(present)),
+            "groups": {group_key(g): {"name": g, "anyone": v["anyone"], "count": v["count"], "total": v["total"],
+                                      "present": ", ".join(sorted(v["names"]))}
+                       for g, v in sorted(groups.items())},
+        }
+
+    def summary_topic(self):
+        return (self.cfg.get("summaryTopic") or "").strip().strip("/")
+
+    def publish_summary(self, force=False):
+        topic = self.summary_topic()
+        if not topic or not self.states:
+            return
+        data = self.summary()
+        snapshot = (topic, json.dumps(data, sort_keys=True))
+        if not force and snapshot == self.summary_published:
+            return
+        if self.summary_published is None or json.loads(self.summary_published[1]).get("anyone") != data["anyone"]:
+            self.summary_changed = time.strftime("%Y-%m-%dT%H:%M:%S")
+        payload = dict(data, since=self.summary_changed)
+        if self.publish_fn(topic, payload):
+            self.summary_published = snapshot
 
 
 # --------------------------------------------------------------------------
@@ -1190,8 +1260,10 @@ class Daemon:
             "mqtt": bool(self.mqtt and self.mqtt.connected),
             "mqttBroker": ("%s:%s" % (self.mqtt_cfg["host"], self.mqtt_cfg["port"])) if self.mqtt_cfg else None,
             "mqttSource": self.mqtt_cfg.get("source") if self.mqtt_cfg else None,
-            "clients": {mac: dict(st, topic=self.tracker.topic_for(mac))
+            "clients": {mac: dict(st, topic=self.tracker.topic_for(mac), person=self.tracker.is_person(mac))
                         for mac, st in self.tracker.states.items()},
+            "summary": dict(self.tracker.summary(), topic=self.tracker.summary_topic(),
+                            since=self.tracker.summary_changed) if self.tracker.states else None,
         }
         try:
             write_json(STATUS_FILE, data, mode=0o644)
@@ -1339,7 +1411,7 @@ class Daemon:
                  info["version"], ctl["port"])
         self.tracker.set_config(cfg)
         self.refresh_stats()
-        self.tracker.published.clear()  # nach (Re-)Connect alle Zustände einmal senden
+        self.tracker.reset_published()  # nach (Re-)Connect alle Zustände einmal senden
         self.poll_clients()
 
         headers = {}
@@ -1382,11 +1454,11 @@ class Daemon:
                     log.info("MQTT-Einstellungen geändert – verbinde neu")
                     if not self.ensure_mqtt():
                         raise ConnectionFailed("MQTT Broker nicht erreichbar")
-                    self.tracker.published.clear()
+                    self.tracker.reset_published()
                 if changed is False:
-                    old_topic = self.tracker.cfg.get("topic")
+                    old = (self.tracker.cfg.get("topic"), self.tracker.cfg.get("summaryTopic"))
                     self.tracker.set_config(self.cfg)
-                    self.tracker.flush_all(force=self.cfg.get("topic") != old_topic)
+                    self.tracker.flush_all(force=(self.cfg.get("topic"), self.cfg.get("summaryTopic")) != old)
                 self.write_status()
         finally:
             ws.close()
@@ -1578,12 +1650,13 @@ def migrate():
         cfg["port"] = to_int(old.get("port"))
     cfg["controllerType"] = "auto"
     cfg["twoFaEnabled"] = bool(old.get("twoFaEnabled"))
-    cfg["clients"] = [{k: c.get(k) for k in ("name", "mac", "type", "system", "userId") if c.get(k) is not None}
+    cfg["clients"] = [{k: c.get(k) for k in ("name", "mac", "type", "system", "userId", "alias", "person", "group")
+                       if c.get(k) is not None}
                       for c in cfg.get("clients", []) if isinstance(c, dict) and c.get("mac")]
     save_config(cfg)
     try:
         with open(SUBSCRIPTION_FILE, "w") as fh:
-            fh.write("%s/#\n" % cfg["topic"].strip("/"))
+            fh.write("%s/#\n%s/#\n" % (cfg["topic"].strip("/"), cfg["summaryTopic"].strip("/")))
     except OSError:
         pass
     print("Einstellungen aus Unifi Presence übernommen (%d Geräte)" % len(cfg["clients"]))
