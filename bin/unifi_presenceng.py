@@ -44,7 +44,7 @@ import time
 
 PLUGIN = "unifi_presenceng"
 OLD_PLUGIN = "unifi_presence"
-VERSION = "4.3.0"
+VERSION = "4.3.1"
 MIN_CONTROLLER_VERSION = (6, 4, 54)
 
 
