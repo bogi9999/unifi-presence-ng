@@ -1,0 +1,67 @@
+/* Unifi-PresenceNG */
+#upng { font-size: 14px; color: #222; text-shadow: none; }
+#upng h3 { margin: 18px 0 10px; font-size: 1.15em; border-bottom: 1px solid #dcdcdc; padding-bottom: 4px; }
+#upng h3:first-child { margin-top: 0; }
+.upng-grid { display: grid; grid-template-columns: minmax(260px, 340px) 1fr; gap: 16px; align-items: start; }
+@media (max-width: 800px) { .upng-grid { grid-template-columns: 1fr; } }
+.upng-card { background: #fff; border: 1px solid #ddd; border-radius: 6px; padding: 14px 16px; margin-bottom: 16px; }
+.upng-row { margin-bottom: 12px; }
+.upng-inline { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 600px) { .upng-inline { grid-template-columns: 1fr; } }
+.upng-bottom { display: flex; align-items: flex-end; gap: 8px; flex-wrap: wrap; padding-bottom: 2px; }
+#upng label { display: block; font-weight: 600; margin-bottom: 3px; }
+#upng label.upng-check { display: inline-flex; align-items: center; gap: 5px; font-weight: normal; margin: 0 10px 0 0; }
+#upng small { display: block; color: #777; margin-top: 3px; line-height: 1.35; }
+#upng small.warn { color: #b26a00; }
+#upng input[type=text], #upng input[type=password], #upng input[type=number], #upng input[type=search], #upng select {
+  width: 100%; box-sizing: border-box; padding: 7px 9px; border: 1px solid #c8c8c8; border-radius: 4px;
+  font-size: 14px; background: #fff; color: #222; height: auto; margin: 0;
+}
+#upng .upng-toolbar input[type=text], #upng .upng-toolbar input[type=search], #upng .upng-toolbar select { width: auto; min-width: 160px; }
+#upng input.invalid { border-color: #d32f2f; background: #fff5f5; }
+#upng input:focus, #upng select:focus { outline: none; border-color: #6dac20; box-shadow: 0 0 0 2px rgba(109, 172, 32, .2); }
+.upng-btn { background: #6dac20; color: #fff; border: 0; border-radius: 4px; padding: 8px 16px; font-size: 14px;
+  cursor: pointer; font-weight: 600; text-shadow: none; }
+.upng-btn:hover { background: #5c9419; }
+.upng-btn-light { background: #eef4e6; color: #3d6a0e; border: 1px solid #c9dfae; }
+.upng-btn-light:hover { background: #e1edd2; }
+.upng-btn:disabled { opacity: .6; cursor: wait; }
+.upng-btn.busy:after { content: ' …'; }
+.upng-actions { margin-top: 18px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.upng-msg { margin-left: 8px; color: #555; }
+.upng-msg.ok { color: #2e7d32; }
+.upng-msg.bad { color: #c62828; }
+.upng-err { color: #c62828; margin: 6px 0; min-height: 1em; white-space: pre-wrap; }
+.upng-hidden { display: none !important; }
+.upng-banner { background: #fff3e0; border: 1px solid #ffcc80; color: #8a4b00; padding: 8px 12px; border-radius: 4px; margin-bottom: 10px; }
+.upng-state { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 1.05em; }
+.upng-state .dot { width: 12px; height: 12px; border-radius: 50%; background: #bbb; flex: none; }
+.upng-state.ok .dot { background: #43a047; }
+.upng-state.warn .dot { background: #fb8c00; }
+.upng-state.bad .dot { background: #e53935; }
+.upng-kv { width: 100%; border-collapse: collapse; margin: 8px 0 14px; }
+.upng-kv th { text-align: left; font-weight: 600; color: #555; padding: 3px 8px 3px 0; white-space: nowrap; vertical-align: top; }
+.upng-kv td { padding: 3px 0; word-break: break-word; }
+.upng-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0; }
+.upng-tablewrap { overflow-x: auto; }
+.upng-table { width: 100%; border-collapse: collapse; }
+.upng-table th { background: #6dac20; color: #fff; text-align: left; padding: 7px 8px; cursor: pointer; white-space: nowrap; font-weight: 600; text-shadow: none; }
+.upng-table td { border-bottom: 1px solid #eee; padding: 6px 8px; vertical-align: middle; }
+.upng-table td.c { text-align: center; }
+.upng-table tr.watched td { background: #f6fbef; }
+.upng-table tr.offline td { color: #999; }
+.upng-table .sub { font-size: 12px; color: #888; }
+.upng-table .sub.warn { color: #b26a00; }
+.upng-table .mono { font-family: monospace; font-size: 13px; }
+.upng-table input.alias { min-width: 120px; padding: 4px 6px; }
+.upng-table input[type=checkbox] { width: 18px; height: 18px; }
+.pill { display: inline-block; padding: 1px 8px; border-radius: 10px; background: #eee; color: #555; font-size: 12px; font-weight: 600; }
+.pill.ok { background: #e8f5e9; color: #2e7d32; }
+.pill.bad { background: #ffebee; color: #c62828; }
+.bars { display: inline-flex; align-items: flex-end; gap: 1px; height: 14px; vertical-align: middle; }
+.bars i { display: inline-block; width: 3px; background: #ccc; }
+.bars i.on { background: #6dac20; }
+.upng-log { background: #1e1e1e; color: #ddd; padding: 10px; border-radius: 4px; max-height: 65vh; overflow: auto;
+  font-size: 12px; line-height: 1.4; white-space: pre-wrap; word-break: break-all; text-shadow: none; }
+.upng-log .bad { color: #ff7b72; }
+.upng-log .warn { color: #e3b341; }
