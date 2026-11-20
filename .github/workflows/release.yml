@@ -32,6 +32,16 @@ jobs:
             git commit -q -m "Altlasten der Express/Vue-Version entfernt"
             git push origin HEAD:main
           fi
+      - name: Ausstehenden Patch einspielen (tools/pending.patch)
+        run: |
+          if [ -f tools/pending.patch ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git apply --index tools/pending.patch
+            git rm -q tools/pending.patch
+            git commit -q -m "tools/pending.patch eingespielt"
+            git push origin HEAD:main
+          fi
       - name: Version, Titel und Icons übernehmen (tools/sync.sh)
         run: |
           command -v rsvg-convert >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq librsvg2-bin >/dev/null; }
