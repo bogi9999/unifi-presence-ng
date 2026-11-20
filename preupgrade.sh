@@ -4,10 +4,10 @@ PDIR=$3
 LBHOMEDIR=${LBHOMEDIR:-REPLACELBHOMEDIR}
 BACKUP=/tmp/${PDIR}_upgrade
 
-echo "<INFO> Stoppe Dienst"
+echo "<INFO> Stopping service"
 /bin/bash "$LBHOMEDIR/bin/plugins/$PDIR/service.sh" stop
 
-echo "<INFO> Sichere Konfiguration und Daten nach $BACKUP"
+echo "<INFO> Backing up configuration and data to $BACKUP"
 rm -rf "$BACKUP"
 mkdir -p "$BACKUP/config" "$BACKUP/data"
 cp -p -r "$LBHOMEDIR/config/plugins/$PDIR/." "$BACKUP/config/" 2>/dev/null

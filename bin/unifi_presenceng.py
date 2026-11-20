@@ -44,7 +44,7 @@ import time
 
 PLUGIN = "unifi_presenceng"
 OLD_PLUGIN = "unifi_presence"
-VERSION = "4.3.1"
+VERSION = "4.3.2"
 MIN_CONTROLLER_VERSION = (6, 4, 54)
 
 
@@ -281,9 +281,9 @@ def http_request(host, port, method, path, body=None, headers=None, timeout=10):
         raw = resp.read()
         return resp.status, resp.getheaders(), raw
     except socket.timeout:
-        raise ConnectionFailed("Zeitüberschreitung bei %s:%s" % (host, port))
+        raise ConnectionFailed("Timeout connecting to %s:%s" % (host, port))
     except (OSError, ssl.SSLError, http.client.HTTPException) as e:
-        raise ConnectionFailed("%s:%s nicht erreichbar (%s)" % (host, port, e))
+        raise ConnectionFailed("%s:%s not reachable (%s)" % (host, port, e))
     finally:
         conn.close()
 
@@ -383,8 +383,8 @@ def detect_controller(host, port=None, timeout=5):
             st_cl = None
         if st_cl in (200, 401):
             return {"type": "classic", "port": p, "host": host}
-        errors.append("%s:%s antwortet nicht wie ein UniFi Controller (HTTP %s)" % (host, p, st))
-    raise ConnectionFailed("; ".join(errors) or "Kein UniFi Controller gefunden")
+        errors.append("%s:%s does not respond like a UniFi controller (HTTP %s)" % (host, p, st))
+    raise ConnectionFailed("; ".join(errors) or "No UniFi controller found")
 
 
 # --------------------------------------------------------------------------
@@ -438,7 +438,7 @@ class UniFiApi:
                 self._ctl = cached
             else:
                 self._ctl = detect_controller(self.host, port)
-                log.info("Controller erkannt: %s auf Port %s", self._ctl["type"], self._ctl["port"])
+                log.info("Controller detected: %s on port %s", self._ctl["type"], self._ctl["port"])
         if self.session.controller != self._ctl:
             self.session.controller = self._ctl
             self.session.dirty = True
@@ -452,7 +452,7 @@ class UniFiApi:
     def login(self, token=None):
         ctl = self.controller()
         if not self.cfg.get("username") or not self.cfg.get("password"):
-            raise LoginFailed("Benutzername oder Passwort fehlt")
+            raise LoginFailed("Username or password missing")
         if ctl["type"] == "unifios":
             path = "/api/auth/login"
             body = {"username": self.cfg["username"], "password": self.cfg["password"], "rememberMe": True}
@@ -471,19 +471,19 @@ class UniFiApi:
             self.session.update(hd)
             self.session.controller = ctl
             self.session.save()
-            log.info("Login am UniFi Controller erfolgreich (%s)", ctl["type"])
+            log.info("Logged in to UniFi controller (%s)", ctl["type"])
             return True
         self.session.save()
         if st == 499 or re.search(r"2fa|mfa|Ubic2faTokenRequired|token required", text, re.I):
-            raise TwoFactorRequired("Zwei-Faktor-Code erforderlich")
+            raise TwoFactorRequired("Two-factor code required")
         if st == 429:
-            raise RateLimited("Zu viele Login-Versuche – der Controller sperrt vorübergehend")
+            raise RateLimited("Too many login attempts - the controller blocks logins temporarily")
         if st in (400, 401, 403):
-            raise LoginFailed("Login abgelehnt (HTTP %s) – Benutzername/Passwort prüfen" % st)
+            raise LoginFailed("Login rejected (HTTP %s) - check username/password" % st)
         if st == 404 and self.cfg.get("controllerType") == "auto":
             self.session.controller = None
             self.session.save()
-        raise UniFiError("Login fehlgeschlagen: HTTP %s %s" % (st, text[:200]))
+        raise UniFiError("Login failed: HTTP %s %s" % (st, text[:200]))
 
     def ensure_login(self, allow_login=True, token=None):
         if token:
@@ -493,9 +493,9 @@ class UniFiApi:
                 self.request("GET", "/api/s/%s/self" % self.site)
                 return True
             except Unauthorized:
-                log.info("Sitzung abgelaufen")
+                log.info("Session expired")
         if not allow_login:
-            raise TwoFactorRequired("Sitzung abgelaufen – Login mit Zwei-Faktor-Code über die Weboberfläche nötig")
+            raise TwoFactorRequired("Session expired - log in again with a two-factor code in the web interface")
         return self.login()
 
     # -- Requests -----------------------------------------------------------
@@ -513,17 +513,17 @@ class UniFiApi:
         if self.session.dirty:
             self.session.save()
         if st == 401 or (st == 403 and b"LoginRequired" in raw):
-            raise Unauthorized("Nicht angemeldet (HTTP %s)" % st)
+            raise Unauthorized("Not logged in (HTTP %s)" % st)
         if st == 404:
             raise NotFound("HTTP 404 %s" % full)
         if st >= 400:
-            raise UniFiError("HTTP %s bei %s" % (st, full))
+            raise UniFiError("HTTP %s for %s" % (st, full))
         if not raw:
             return None
         try:
             return json.loads(raw.decode("utf-8", "replace"))
         except ValueError:
-            raise UniFiError("Ungültige Antwort von %s" % full)
+            raise UniFiError("Invalid response from %s" % full)
 
     def legacy(self, path, timeout=10):
         data = self.request("GET", path, timeout=timeout)
@@ -646,20 +646,20 @@ class WebSocket:
         while b"\r\n\r\n" not in data:
             chunk = self.sock.recv(4096)
             if not chunk:
-                raise ConnectionFailed("WebSocket: Verbindung beim Handshake geschlossen")
+                raise ConnectionFailed("WebSocket: connection closed during handshake")
             data += chunk
             if len(data) > 65536:
-                raise ConnectionFailed("WebSocket: Handshake zu groß")
+                raise ConnectionFailed("WebSocket: handshake too large")
         head, self.buf = data.split(b"\r\n\r\n", 1)
         lines = head.decode("latin-1").split("\r\n")
         m = re.match(r"HTTP/\d\.\d (\d+)", lines[0])
         status = int(m.group(1)) if m else 0
         if status in (401, 403):
             self.close()
-            raise Unauthorized("WebSocket: nicht angemeldet (HTTP %s)" % status)
+            raise Unauthorized("WebSocket: not logged in (HTTP %s)" % status)
         if status != 101:
             self.close()
-            raise ConnectionFailed("WebSocket: unerwartete Antwort HTTP %s" % status)
+            raise ConnectionFailed("WebSocket: unexpected response HTTP %s" % status)
         hdrs = {}
         for line in lines[1:]:
             if ":" in line:
@@ -668,13 +668,13 @@ class WebSocket:
         expected = base64.b64encode(hashlib.sha1((key + self.GUID).encode()).digest()).decode()
         if hdrs.get("sec-websocket-accept") != expected:
             self.close()
-            raise ConnectionFailed("WebSocket: ungültiger Accept-Header")
+            raise ConnectionFailed("WebSocket: invalid Accept header")
         self.sock.settimeout(None)
         self.last_rx = time.time()
 
     def _send_frame(self, opcode, payload):
         if self.closed or not self.sock:
-            raise ConnectionFailed("WebSocket geschlossen")
+            raise ConnectionFailed("WebSocket closed")
         header = bytes([0x80 | opcode])
         n = len(payload)
         if n < 126:
@@ -689,7 +689,7 @@ class WebSocket:
             self.sock.sendall(header + mask + masked)
         except OSError as e:
             self.closed = True
-            raise ConnectionFailed("WebSocket: Senden fehlgeschlagen (%s)" % e)
+            raise ConnectionFailed("WebSocket: send failed (%s)" % e)
 
     def send_text(self, text):
         self._send_frame(0x1, text.encode("utf-8"))
@@ -732,7 +732,7 @@ class WebSocket:
         """Wartet bis zu `timeout` Sekunden auf Daten und gibt fertige Textnachrichten zurück."""
         messages = []
         if self.closed:
-            raise ConnectionFailed("WebSocket geschlossen")
+            raise ConnectionFailed("WebSocket closed")
         pending = self.sock.pending() if hasattr(self.sock, "pending") else 0
         if not pending and not self._has_frame():
             r, _, _ = select.select([self.sock], [], [], timeout)
@@ -746,13 +746,13 @@ class WebSocket:
                 chunk = None
             except OSError as e:
                 self.closed = True
-                raise ConnectionFailed("WebSocket: Lesefehler (%s)" % e)
+                raise ConnectionFailed("WebSocket: read error (%s)" % e)
             finally:
                 if self.sock:
                     self.sock.setblocking(True)
             if chunk == b"":
                 self.closed = True
-                raise ConnectionFailed("WebSocket vom Controller geschlossen")
+                raise ConnectionFailed("WebSocket closed by controller")
             if chunk:
                 self.buf += chunk
                 self.last_rx = time.time()
@@ -767,7 +767,7 @@ class WebSocket:
             if opcode == 0x8:  # close
                 self.closed = True
                 code = struct.unpack("!H", payload[:2])[0] if len(payload) >= 2 else 0
-                raise ConnectionFailed("WebSocket vom Controller geschlossen (Code %s)" % code)
+                raise ConnectionFailed("WebSocket closed by controller (code %s)" % code)
             if opcode == 0x9:  # ping
                 self._send_frame(0xA, payload)
                 continue
@@ -901,21 +901,21 @@ class Mqtt:
             chunk = sock.recv(4 - len(ack))
             if not chunk:
                 sock.close()
-                raise ConnectionError("MQTT: Verbindung vom Broker geschlossen")
+                raise ConnectionError("MQTT: connection closed by broker")
             ack += chunk
         if ack[0] != 0x20 or ack[3] != 0:
             sock.close()
-            reasons = {1: "Protokollversion", 2: "Client-ID abgelehnt", 3: "Broker nicht verfügbar",
-                       4: "Benutzer/Passwort falsch", 5: "nicht autorisiert"}
-            raise ConnectionError("MQTT: Verbindung abgelehnt (%s)" % reasons.get(ack[3], ack[3]))
+            reasons = {1: "protocol version", 2: "client ID rejected", 3: "broker unavailable",
+                       4: "wrong username/password", 5: "not authorized"}
+            raise ConnectionError("MQTT: connection refused (%s)" % reasons.get(ack[3], ack[3]))
         sock.settimeout(None)
         self.sock = sock
         self.connected = True
         self.last_tx = time.time()
         self._reader = threading.Thread(target=self._read_loop, args=(sock,), daemon=True)
         self._reader.start()
-        log.info("MQTT verbunden mit %s:%s (%s%s)", s["host"], s["port"],
-                 "LoxBerry-Broker" if s.get("source") == "loxberry" else "eigener Broker",
+        log.info("MQTT connected to %s:%s (%s%s)", s["host"], s["port"],
+                 "LoxBerry broker" if s.get("source") == "loxberry" else "custom broker",
                  ", TLS" if s.get("tls") else "")
 
     def _read_loop(self, sock):
@@ -928,7 +928,7 @@ class Mqtt:
             pass
         if self.sock is sock:
             self.connected = False
-            log.warning("MQTT Verbindung getrennt")
+            log.warning("MQTT connection lost")
 
     def disconnect(self):
         with self.lock:
@@ -951,7 +951,7 @@ class Mqtt:
     def _send(self, packet):
         with self.lock:
             if not self.sock:
-                raise ConnectionError("MQTT nicht verbunden")
+                raise ConnectionError("MQTT not connected")
             self.sock.sendall(packet)
             self.last_tx = time.time()
 
@@ -969,7 +969,7 @@ class Mqtt:
             except (OSError, ConnectionError) as e:
                 self.connected = False
                 if attempt == 2:
-                    log.error("MQTT publish fehlgeschlagen: %s", e)
+                    log.error("MQTT publish failed: %s", e)
                     return False
         return False
 
@@ -1040,7 +1040,7 @@ class Tracker:
         if st["connected"] != value:
             st["connected"] = value
             st["since"] = time.strftime("%Y-%m-%dT%H:%M:%S")
-            log.info("%s (%s) ist jetzt %s", st["name"], st["mac"], "ONLINE" if value else "OFFLINE")
+            log.info("%s (%s) is now %s", st["name"], st["mac"], "ONLINE" if value else "OFFLINE")
         if not value and st["type"] == "WIRELESS":
             st["signalDbm"] = -100
             st["signalPercentage"] = 0
@@ -1268,7 +1268,7 @@ class Daemon:
         try:
             write_json(STATUS_FILE, data, mode=0o644)
         except OSError as e:
-            log.error("Statusdatei kann nicht geschrieben werden: %s", e)
+            log.error("Cannot write status file: %s", e)
 
     # -- MQTT ---------------------------------------------------------------
     def publish(self, topic, payload):
@@ -1283,9 +1283,9 @@ class Daemon:
         settings = mqtt_settings(self.cfg)
         if not settings:
             if (self.cfg.get("mqtt") or {}).get("mode") == "custom":
-                self.set_status("NO_MQTT", "Eigener MQTT Broker gewählt, aber keine Adresse eingetragen")
+                self.set_status("NO_MQTT", "Custom MQTT broker selected but no address set")
             else:
-                self.set_status("NO_MQTT", "In LoxBerry ist kein MQTT Broker konfiguriert")
+                self.set_status("NO_MQTT", "No MQTT broker configured in LoxBerry")
             return False
         if settings != self.mqtt_cfg or self.mqtt is None:
             if self.mqtt:
@@ -1328,7 +1328,7 @@ class Daemon:
         self.cfg_mtime = m
         self.apply_loglevel()
         changed = any(old.get(f) != self.cfg.get(f) for f in CONNECTION_FIELDS)
-        log.info("Konfiguration neu geladen%s", " (Verbindungsdaten geändert)" if changed else "")
+        log.info("Configuration reloaded%s", " (connection settings changed)" if changed else "")
         return changed
 
     def apply_loglevel(self):
@@ -1342,7 +1342,7 @@ class Daemon:
         signal.signal(signal.SIGTERM, self.stop)
         signal.signal(signal.SIGINT, self.stop)
         self.apply_loglevel()
-        log.info("Unifi-PresenceNG %s gestartet (Python %s)", VERSION, sys.version.split()[0])
+        log.info("Unifi-Presence NG %s started (Python %s)", VERSION, sys.version.split()[0])
         while self.running:
             self.reload_config()
             if not self.ensure_mqtt():
@@ -1350,7 +1350,7 @@ class Daemon:
                 continue
             cfg = self.cfg
             if not cfg.get("ipaddress") or not cfg.get("username") or not cfg.get("password"):
-                self.set_status("WAIT_FOR_CONFIG", "Controller-Adresse, Benutzername oder Passwort fehlt")
+                self.set_status("WAIT_FOR_CONFIG", "Controller address, username or password missing")
                 self.sleep(3600)
                 continue
             try:
@@ -1385,14 +1385,14 @@ class Daemon:
                 self.sleep(min(120, 10 * self.fail_count))
             except Exception as e:  # pragma: no cover
                 self.fail_count += 1
-                log.exception("Unerwarteter Fehler")
+                log.exception("Unexpected error")
                 self.set_status("ERROR", "%s: %s" % (type(e).__name__, e))
                 self.sleep(30)
         if self.mqtt:
             self.mqtt.disconnect()
         self.status = "STOPPED"
         self.write_status(force=True)
-        log.info("Beendet")
+        log.info("Stopped")
 
     def session_loop(self):
         cfg = self.cfg
@@ -1406,8 +1406,8 @@ class Daemon:
                                 "version": info["version"], "deviceType": info["deviceType"],
                                 "name": info["name"]}
         if not info["versionOk"]:
-            raise VersionTooOld("Controller-Version %s ist zu alt (mindestens 6.4.54)" % info["version"])
-        log.info("Verbunden mit %s %s (Network %s, Port %s)", ctl["type"], info["deviceType"] or "",
+            raise VersionTooOld("Controller version %s is too old (6.4.54 or newer required)" % info["version"])
+        log.info("Connected to %s %s (Network %s, port %s)", ctl["type"], info["deviceType"] or "",
                  info["version"], ctl["port"])
         self.tracker.set_config(cfg)
         self.refresh_stats()
@@ -1419,7 +1419,7 @@ class Daemon:
             headers["Cookie"] = api.session.cookie_header()
         ws = WebSocket(api.host, ctl["port"], api.ws_path(), headers=headers)
         ws.connect()
-        log.info("Event-WebSocket verbunden (%s)", api.ws_path())
+        log.info("Event WebSocket connected (%s)", api.ws_path())
         self.set_status("CONNECTED")
         self.fail_count = 0
         last_ping = last_poll = last_stats = time.time()
@@ -1432,7 +1432,7 @@ class Daemon:
                     ws.send_text("ping")
                     last_ping = now
                 if now - ws.last_rx > 120:
-                    raise ConnectionFailed("WebSocket: seit 120 s keine Daten mehr")
+                    raise ConnectionFailed("WebSocket: no data for 120 s")
                 if now - last_poll >= self.cfg["pollInterval"]:
                     self.poll_clients()
                     last_poll = now
@@ -1443,7 +1443,7 @@ class Daemon:
                 if self.mqtt:
                     if not self.mqtt.connected:
                         if not self.ensure_mqtt():
-                            raise ConnectionFailed("MQTT Broker nicht erreichbar")
+                            raise ConnectionFailed("MQTT broker not reachable")
                         self.tracker.flush_all(force=True)
                         self.set_status("CONNECTED")
                     self.mqtt.keepalive()
@@ -1451,9 +1451,9 @@ class Daemon:
                 if changed:
                     return
                 if changed is not None and mqtt_settings(self.cfg) != self.mqtt_cfg:
-                    log.info("MQTT-Einstellungen geändert – verbinde neu")
+                    log.info("MQTT settings changed - reconnecting")
                     if not self.ensure_mqtt():
-                        raise ConnectionFailed("MQTT Broker nicht erreichbar")
+                        raise ConnectionFailed("MQTT broker not reachable")
                     self.tracker.reset_published()
                 if changed is False:
                     old = (self.tracker.cfg.get("topic"), self.tracker.cfg.get("summaryTopic"))
@@ -1469,7 +1469,7 @@ class Daemon:
         except (NotFound, UniFiError) as e:
             if isinstance(e, (Unauthorized, ConnectionFailed)):
                 raise
-            log.debug("Health nicht verfügbar: %s", e)
+            log.debug("Health data not available: %s", e)
 
     def poll_clients(self):
         clients = self.api.active_clients()
@@ -1503,7 +1503,7 @@ class Daemon:
                 if isinstance(e, dict):
                     self.tracker.event(e)
         elif kind:
-            log.debug("Ignoriere Event %s", kind)
+            log.debug("Ignoring event %s", kind)
 
 
 def setup_logging(to_file):
@@ -1526,8 +1526,8 @@ def run_daemon(args):
     try:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except OSError:
-        log.error("Daemon läuft bereits")
-        print("Daemon läuft bereits", file=sys.stderr)
+        log.error("Daemon is already running")
+        print("Daemon is already running", file=sys.stderr)
         return 1
     lock.write(str(os.getpid()))
     lock.flush()
@@ -1558,7 +1558,7 @@ def cli(args):
                     pass
             s = mqtt_settings(test_cfg)
             if not s:
-                raise UniFiError("Kein MQTT Broker konfiguriert")
+                raise UniFiError("No MQTT broker configured")
             m = Mqtt(s, client_id=("UPNG-test-%d" % os.getpid())[:23])
             try:
                 m.connect()
@@ -1569,7 +1569,7 @@ def cli(args):
             out["source"] = s["source"]
             return out
         if not cfg.get("ipaddress"):
-            raise UniFiError("Keine Controller-Adresse konfiguriert")
+            raise UniFiError("No controller address configured")
         if args.command == "detect":
             ctl = detect_controller(cfg["ipaddress"], cfg.get("port"))
             out["controller"] = ctl
@@ -1621,7 +1621,7 @@ def cli(args):
             except UniFiError:
                 out["health"] = {}
         else:
-            raise UniFiError("Unbekannter Befehl %s" % args.command)
+            raise UniFiError("Unknown command %s" % args.command)
     except UniFiError as e:
         out = {"ok": False, "code": e.code, "error": str(e)}
     except Exception as e:  # pragma: no cover
@@ -1633,7 +1633,7 @@ def migrate():
     """Übernimmt die Einstellungen aus dem alten Plugin 'unifi_presence' (3.x), falls noch nichts konfiguriert ist."""
     cfg = load_config()
     if cfg.get("ipaddress"):
-        print("Konfiguration vorhanden – keine Übernahme nötig")
+        print("Configuration exists - nothing to migrate")
         return 0
     old = None
     for name in (OLD_PLUGIN, "unifi_presence_ng"):
@@ -1641,7 +1641,7 @@ def migrate():
         if old and old.get("ipaddress"):
             break
     if not old or not old.get("ipaddress"):
-        print("Keine alte Unifi-Presence-Konfiguration gefunden")
+        print("No old Unifi Presence configuration found")
         return 0
     for key in ("ipaddress", "username", "password", "site", "topic", "wiredTimeout", "clients"):
         if old.get(key) not in (None, ""):
@@ -1659,7 +1659,7 @@ def migrate():
             fh.write("%s/#\n%s/#\n" % (cfg["topic"].strip("/"), cfg["summaryTopic"].strip("/")))
     except OSError:
         pass
-    print("Einstellungen aus Unifi Presence übernommen (%d Geräte)" % len(cfg["clients"]))
+    print("Settings migrated from Unifi Presence (%d devices)" % len(cfg["clients"]))
     return 0
 
 
@@ -1667,7 +1667,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(prog="unifi_presenceng")
     sub = parser.add_subparsers(dest="mode")
     d = sub.add_parser("daemon")
-    d.add_argument("--foreground", action="store_true", help="Log auf stderr statt Datei")
+    d.add_argument("--foreground", action="store_true", help="log to stderr instead of file")
     c = sub.add_parser("cli")
     c.add_argument("command", choices=["detect", "login", "clients", "sites", "stats", "mqtttest"])
     c.add_argument("--host")

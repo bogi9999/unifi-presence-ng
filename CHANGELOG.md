@@ -1,3 +1,9 @@
+## 4.3.2 (2026-11-20)
+
+* Lokalisierung vervollständigt: Fehlermeldungen der Weboberfläche kommen jetzt aus den Sprachdateien (Deutsch/Englisch)
+* Log, Fehlertexte des Dienstes und Installationsmeldungen auf Englisch (wie bei LoxBerry üblich)
+* Hilfe in Deutsch und Englisch, mit Link zur Wiki-Seite
+
 ## 4.3.1 (2026-11-20)
 
 * Umschalter Hell/Dunkel vervollständigt (in 4.3.0 fehlte er noch, die Oberfläche blieb hell)

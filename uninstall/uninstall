@@ -2,7 +2,7 @@
 # Wird von LoxBerry vor dem Entfernen des Plugins als root ausgeführt.
 set -a; [ -r /etc/environment ] && . /etc/environment; set +a
 LBHOMEDIR=${LBHOMEDIR:-REPLACELBHOMEDIR}
-echo "<INFO> Stoppe Unifi-PresenceNG"
+echo "<INFO> Stopping Unifi-Presence NG"
 /bin/bash "$LBHOMEDIR/bin/plugins/unifi_presenceng/service.sh" stop
 pkill -f "unifi_presenceng.py daemon" 2>/dev/null
 exit 0

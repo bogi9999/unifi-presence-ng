@@ -1,14 +1,15 @@
 <?php
 /*
- * Unifi-PresenceNG – JSON-Schnittstelle der Weboberfläche (ersetzt den Express-Server)
+ * Unifi-Presence NG – JSON API of the web interface (replaces the Express server)
  */
 require_once "loxberry_system.php";
+require_once __DIR__ . "/lang.php";
 
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 
 const UPNG_PLUGIN = 'unifi_presenceng';
-const UPNG_VERSION = '4.3.1';
+const UPNG_VERSION = '4.3.2';
 const UPNG_RELEASE_CFG = 'https://raw.githubusercontent.com/bogi9999/unifi-presence-ng/main/release.cfg';
 const UPNG_PRERELEASE_CFG = 'https://raw.githubusercontent.com/bogi9999/unifi-presence-ng/main/prerelease.cfg';
 const UPNG_BACKUP_FORMAT = 'unifi-presenceng-backup';
@@ -67,9 +68,9 @@ function save_config($cfg)
     global $configFile;
     $json = json_encode($cfg, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     $tmp = $configFile . '.tmp.' . getmypid();
-    if (file_put_contents($tmp, $json) === false) fail('Konfiguration kann nicht geschrieben werden', 500);
+    if (file_put_contents($tmp, $json) === false) fail(t('ERR.CONFIG_WRITE'), 500);
     @chmod($tmp, 0600);
-    if (!rename($tmp, $configFile)) fail('Konfiguration kann nicht gespeichert werden', 500);
+    if (!rename($tmp, $configFile)) fail(t('ERR.CONFIG_WRITE'), 500);
 }
 
 function public_config($cfg)
@@ -104,13 +105,13 @@ function mqtt_from_input($input, $current, &$errors)
     } elseif (ctype_digit((string) $port) && intval($port) > 0 && intval($port) < 65536) {
         $m['port'] = intval($port);
     } else {
-        $errors['mqttPort'] = 'Ungültiger Port';
+        $errors['mqttPort'] = 1;
     }
     $m['user'] = trim((string) ($input['mqttUser'] ?? $m['user']));
     if (isset($input['mqttPassword']) && $input['mqttPassword'] !== '') $m['password'] = (string) $input['mqttPassword'];
     if (!empty($input['mqttClearPassword'])) $m['password'] = '';
     if ($m['mode'] === 'custom' && ($m['host'] === '' || !preg_match('/^[A-Za-z0-9.\-:\[\]]+$/', $m['host']))) {
-        $errors['mqttHost'] = 'Ungültige Adresse';
+        $errors['mqttHost'] = 1;
     }
     return $m;
 }
@@ -126,8 +127,8 @@ function run_cli($args, $timeout = 60)
     $text = implode("\n", $out);
     $res = json_decode(trim(end($out) ?: ''), true);
     if (!is_array($res)) {
-        if ($rc == 124) return ['ok' => false, 'code' => 'UNREACHABLE', 'error' => 'Zeitüberschreitung'];
-        return ['ok' => false, 'code' => 'ERROR', 'error' => 'Interner Fehler (rc=' . $rc . '): ' . substr($text, 0, 400)];
+        if ($rc == 124) return ['ok' => false, 'code' => 'UNREACHABLE', 'error' => t('ERR.TIMEOUT')];
+        return ['ok' => false, 'code' => 'ERROR', 'error' => t('ERR.INTERNAL') . ' (rc=' . $rc . '): ' . substr($text, 0, 400)];
     }
     return $res;
 }
@@ -218,17 +219,17 @@ switch ($action) {
         $errors = [];
 
         $topic = trim((string) ($input['topic'] ?? $cfg['topic']), " /");
-        if (!preg_match('#^[A-Za-z0-9_\-]+(/[A-Za-z0-9_\-]+)*$#', $topic)) $errors['topic'] = 'Ungültiges Topic';
+        if (!preg_match('#^[A-Za-z0-9_\-]+(/[A-Za-z0-9_\-]+)*$#', $topic)) $errors['topic'] = 1;
         $cfg['topic'] = $topic;
 
         $stopic = trim((string) ($input['summaryTopic'] ?? $cfg['summaryTopic']), " /");
-        if ($stopic !== '' && !valid_topic($stopic)) $errors['summaryTopic'] = 'Ungültiges Topic';
+        if ($stopic !== '' && !valid_topic($stopic)) $errors['summaryTopic'] = 1;
         $cfg['summaryTopic'] = $stopic;
 
         $host = trim((string) ($input['ipaddress'] ?? $cfg['ipaddress']));
         $host = preg_replace('#^[a-z]+://#i', '', $host);
         $host = explode('/', $host)[0];
-        if ($host === '' || !preg_match('/^[A-Za-z0-9.\-:\[\]]+$/', $host)) $errors['ipaddress'] = 'Ungültige Adresse';
+        if ($host === '' || !preg_match('/^[A-Za-z0-9.\-:\[\]]+$/', $host)) $errors['ipaddress'] = 1;
         $cfg['ipaddress'] = $host;
 
         $port = $input['port'] ?? $cfg['port'];
@@ -237,16 +238,16 @@ switch ($action) {
         } elseif (ctype_digit((string) $port) && intval($port) > 0 && intval($port) < 65536) {
             $cfg['port'] = intval($port);
         } else {
-            $errors['port'] = 'Ungültiger Port';
+            $errors['port'] = 1;
         }
 
         $type = $input['controllerType'] ?? $cfg['controllerType'];
         $cfg['controllerType'] = in_array($type, ['auto', 'unifios', 'classic']) ? $type : 'auto';
 
         $cfg['username'] = trim((string) ($input['username'] ?? $cfg['username']));
-        if ($cfg['username'] === '') $errors['username'] = 'Pflichtfeld';
+        if ($cfg['username'] === '') $errors['username'] = 1;
         if (isset($input['password']) && $input['password'] !== '') $cfg['password'] = (string) $input['password'];
-        if ($cfg['password'] === '') $errors['password'] = 'Pflichtfeld';
+        if ($cfg['password'] === '') $errors['password'] = 1;
 
         $site = trim((string) ($input['site'] ?? $cfg['site']));
         $cfg['site'] = preg_match('/^[A-Za-z0-9_\-]+$/', $site) ? $site : 'default';
@@ -256,7 +257,7 @@ switch ($action) {
         $cfg['loglevel'] = (($input['loglevel'] ?? $cfg['loglevel']) === 'debug') ? 'debug' : 'info';
         $cfg['mqtt'] = mqtt_from_input($input, $cfg['mqtt'], $errors);
 
-        if ($errors) fail('Bitte Eingaben prüfen', 400, ['fields' => $errors]);
+        if ($errors) fail(t('ERR.CHECK_INPUT'), 400, ['fields' => $errors]);
 
         save_config($cfg);
         if ($old['topic'] !== $cfg['topic'] || $old['summaryTopic'] !== $cfg['summaryTopic'] || !file_exists($subscriptionFile)) {
@@ -288,7 +289,7 @@ switch ($action) {
     case 'mqtttest':
         $errors = [];
         $m = mqtt_from_input($input, load_config()['mqtt'], $errors);
-        if ($errors) fail('Bitte Eingaben prüfen', 400, ['fields' => $errors]);
+        if ($errors) fail(t('ERR.CHECK_INPUT'), 400, ['fields' => $errors]);
         putenv('UPNG_MQTT_TEST=' . json_encode($m));
         respond(run_cli(['mqtttest'], 20));
 
@@ -323,7 +324,7 @@ switch ($action) {
 
     case 'setclients':
         $list = $input['clients'] ?? null;
-        if (!is_array($list)) fail('Ungültige Geräteliste');
+        if (!is_array($list)) fail(t('ERR.DEVICE_LIST'));
         $clean = [];
         foreach ($list as $c) {
             if (!is_array($c)) continue;
@@ -374,15 +375,15 @@ switch ($action) {
 
     case 'backup':
         $pw = (string) ($input['password'] ?? '');
-        if (mb_strlen($pw) < 8) fail('Das Passwort muss mindestens 8 Zeichen haben', 400, ['fields' => ['backupPassword' => 1]]);
-        if (!function_exists('openssl_encrypt')) fail('PHP-OpenSSL ist nicht verfügbar', 500);
+        if (mb_strlen($pw) < 8) fail(t('ERR.BACKUP_PASSWORD'), 400, ['fields' => ['backupPassword' => 1]]);
+        if (!function_exists('openssl_encrypt')) fail(t('ERR.NO_OPENSSL'), 500);
         $plain = json_encode(load_config(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         $salt = random_bytes(16);
         $iv = random_bytes(12);
         $tag = '';
         $enc = openssl_encrypt($plain, 'aes-256-gcm', backup_key($pw, $salt, UPNG_BACKUP_ITER), OPENSSL_RAW_DATA,
                                $iv, $tag, UPNG_BACKUP_FORMAT);
-        if ($enc === false) fail('Verschlüsselung fehlgeschlagen', 500);
+        if ($enc === false) fail(t('ERR.ENCRYPT'), 500);
         respond(['ok' => true, 'filename' => 'unifi-presenceng-' . date('Y-m-d') . '.upng', 'backup' => [
             'format' => UPNG_BACKUP_FORMAT, 'version' => 1, 'plugin' => UPNG_VERSION, 'created' => date('c'),
             'cipher' => 'aes-256-gcm', 'kdf' => 'pbkdf2-sha256', 'iterations' => UPNG_BACKUP_ITER,
@@ -393,7 +394,7 @@ switch ($action) {
     case 'restore':
         $b = json_decode((string) ($input['file'] ?? ''), true);
         if (!is_array($b) || ($b['format'] ?? '') !== UPNG_BACKUP_FORMAT || ($b['cipher'] ?? '') !== 'aes-256-gcm') {
-            fail('Das ist keine Sicherung von Unifi-PresenceNG', 400, ['fields' => ['backupFile' => 1]]);
+            fail(t('ERR.NOT_A_BACKUP'), 400, ['fields' => ['backupFile' => 1]]);
         }
         $iter = max(10000, min(2000000, intval($b['iterations'] ?? UPNG_BACKUP_ITER)));
         $plain = openssl_decrypt(base64_decode($b['data'] ?? ''), 'aes-256-gcm',
@@ -401,7 +402,7 @@ switch ($action) {
                                  OPENSSL_RAW_DATA, base64_decode($b['iv'] ?? ''), base64_decode($b['tag'] ?? ''),
                                  UPNG_BACKUP_FORMAT);
         $restored = $plain === false ? null : json_decode($plain, true);
-        if (!is_array($restored)) fail('Falsches Passwort oder beschädigte Datei', 400, ['fields' => ['backupPassword' => 1]]);
+        if (!is_array($restored)) fail(t('ERR.BACKUP_DECRYPT'), 400, ['fields' => ['backupPassword' => 1]]);
         $preview = [
             'created' => $b['created'] ?? null, 'plugin' => $b['plugin'] ?? null,
             'ipaddress' => $restored['ipaddress'] ?? '', 'username' => $restored['username'] ?? '',
@@ -428,5 +429,5 @@ switch ($action) {
         respond(['ok' => true, 'file' => $logFile, 'lines' => $lines]);
 
     default:
-        fail('Unbekannte Aktion');
+        fail(t('ERR.UNKNOWN_ACTION'));
 }

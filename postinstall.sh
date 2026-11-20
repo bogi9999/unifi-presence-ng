@@ -11,19 +11,19 @@ mkdir -p "$PDATA" "$PLOG"
 chmod 600 "$PCONFIG/unifi.json" 2>/dev/null
 
 if ! command -v python3 >/dev/null 2>&1; then
-  echo "<FAIL> python3 wurde nicht gefunden – bitte 'apt install python3' ausführen"
+  echo "<FAIL> python3 not found - please run 'apt install python3'"
   exit 2
 fi
 PYV=$(python3 -c 'import sys; print("%d.%d" % sys.version_info[:2])')
-echo "<OK> Python $PYV gefunden – keine weiteren Abhängigkeiten nötig (kein Node.js / Express)"
+echo "<OK> Python $PYV found - no further dependencies needed (no Node.js / Express)"
 
-echo "<INFO> Prüfe Übernahme der Einstellungen aus 'Unifi Presence'"
+echo "<INFO> Checking for settings of 'Unifi Presence' to migrate"
 LBHOMEDIR=$LBHOMEDIR python3 "$PBIN/unifi_presenceng.py" migrate | sed 's/^/<INFO> /'
 
 if [ -d "$LBHOMEDIR/bin/plugins/unifi_presence" ]; then
-  echo "<WARNING> Das alte Plugin 'Unifi Presence' ist noch installiert. Bitte deinstallieren, sonst senden beide auf dieselben MQTT-Topics."
+  echo "<WARNING> The old plugin 'Unifi Presence' is still installed. Please uninstall it, otherwise both publish to the same MQTT topics."
 fi
 
-echo "<INFO> Starte Dienst"
+echo "<INFO> Starting service"
 /bin/bash "$PBIN/service.sh" restart | sed 's/^/<INFO> /'
 exit 0

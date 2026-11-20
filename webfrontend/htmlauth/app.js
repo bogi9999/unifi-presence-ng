@@ -172,7 +172,7 @@
       $('hDot').className = 'u-dot ' + statusClass(s.status);
       $('hState').textContent = t('STATUS.S_' + s.status, s.status);
       var parts = [];
-      if (c.host) parts.push((c.deviceType || (c.type === 'unifios' ? 'UniFi OS' : 'Network')) + (c.name ? ' „' + c.name + '“' : ''));
+      if (c.host) parts.push((c.deviceType || (c.type === 'unifios' ? 'UniFi OS' : 'Network')) + (c.name ? ' ' + t('COMMON.Q_OPEN') + c.name + t('COMMON.Q_CLOSE') : ''));
       if (c.version) parts.push('Network ' + c.version);
       if (c.host) parts.push(c.host + ':' + c.port);
       $('hSub').textContent = parts.join(' · ') || ' ';
@@ -527,7 +527,7 @@
         var lv = live[c.mac], state = '';
         if (c.watched) state = lv ? '<span class="u-pill ' + (lv.connected ? 'ok' : 'bad') + '">' + esc(lv.connected ? t('CLIENTS.ONLINE') : t('CLIENTS.OFFLINE')) + '</span>' : '<span class="u-pill">–</span>';
         var net = c.type === 'WIRED' ? '<span class="u-net">' + ICON_LAN + 'LAN</span>'
-          : '<span class="u-net">' + ICON_WIFI + (c.online ? esc(c.ssid || 'WLAN') + ' ' + bars(c.signalPercentage) : esc(t('CLIENTS.OFFLINE'))) + '</span>' +
+          : '<span class="u-net">' + ICON_WIFI + (c.online ? esc(c.ssid || t('CLIENTS.SHOW_WIFI')) + ' ' + bars(c.signalPercentage) : esc(t('CLIENTS.OFFLINE'))) + '</span>' +
             (c.online && c.ap ? '<div class="sub">' + esc(c.ap) + '</div>' : '');
         return '<tr class="' + (c.watched ? 'watched' : '') + (c.online ? '' : ' offline') + '">' +
           '<td>' + sw('w', c.mac, c.watched) + '</td>' +

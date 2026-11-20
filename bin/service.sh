@@ -29,11 +29,11 @@ is_running() {
 
 do_start() {
   if is_running; then
-    echo "Unifi-PresenceNG läuft bereits (PID $(find_pids | tr '\n' ' '))"
+    echo "Unifi-Presence NG is already running (PID $(find_pids | tr '\n' ' '))"
     return 0
   fi
   if ! command -v python3 >/dev/null 2>&1; then
-    echo "FEHLER: python3 ist nicht installiert" >&2
+    echo "ERROR: python3 is not installed" >&2
     return 1
   fi
   mkdir -p "$DATA" "$LOGDIR"
@@ -41,9 +41,9 @@ do_start() {
   echo $! > "$PIDFILE"
   sleep 1
   if is_running; then
-    echo "Unifi-PresenceNG gestartet (PID $(cat "$PIDFILE"))"
+    echo "Unifi-Presence NG started (PID $(cat "$PIDFILE"))"
   else
-    echo "FEHLER: Start fehlgeschlagen – siehe $LOGDIR" >&2
+    echo "ERROR: start failed - see $LOGDIR" >&2
     tail -n 20 "$LOGDIR/daemon_stdout.log" 2>/dev/null >&2
     return 1
   fi
@@ -54,7 +54,7 @@ do_stop() {
   pids=$(find_pids)
   if [ -z "$pids" ]; then
     rm -f "$PIDFILE"
-    echo "Unifi-PresenceNG läuft nicht"
+    echo "Unifi-Presence NG is not running"
     return 0
   fi
   kill $pids 2>/dev/null
@@ -65,7 +65,7 @@ do_stop() {
   pids=$(find_pids)
   [ -n "$pids" ] && kill -9 $pids 2>/dev/null
   rm -f "$PIDFILE"
-  echo "Unifi-PresenceNG gestoppt"
+  echo "Unifi-Presence NG stopped"
 }
 
 case "$1" in
@@ -79,6 +79,6 @@ case "$1" in
     [ -f "$BIN" ] || exit 0
     is_running || do_start ;;
   *)
-    echo "Aufruf: $0 {start|stop|restart|status|watchdog}"
+    echo "Usage: $0 {start|stop|restart|status|watchdog}"
     exit 2 ;;
 esac

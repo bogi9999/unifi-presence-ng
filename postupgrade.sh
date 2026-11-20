@@ -5,12 +5,12 @@ LBHOMEDIR=${LBHOMEDIR:-REPLACELBHOMEDIR}
 BACKUP=/tmp/${PDIR}_upgrade
 
 if [ -d "$BACKUP" ]; then
-  echo "<INFO> Stelle Konfiguration und Daten wieder her"
+  echo "<INFO> Restoring configuration and data"
   cp -p -r "$BACKUP/config/." "$LBHOMEDIR/config/plugins/$PDIR/" 2>/dev/null
   cp -p -r "$BACKUP/data/." "$LBHOMEDIR/data/plugins/$PDIR/" 2>/dev/null
   rm -rf "$BACKUP"
 fi
 
-echo "<INFO> Starte Dienst neu"
+echo "<INFO> Restarting service"
 /bin/bash "$LBHOMEDIR/bin/plugins/$PDIR/service.sh" restart | sed 's/^/<INFO> /'
 exit 0

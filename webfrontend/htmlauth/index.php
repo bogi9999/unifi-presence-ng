@@ -1,40 +1,10 @@
 <?php
 /*
- * Unifi-PresenceNG – Weboberfläche (reines PHP + Vanilla JS, kein Express-Server)
+ * Unifi-Presence NG – web interface (plain PHP + vanilla JS, no Express server)
  */
 require_once "loxberry_web.php";
 
-// Sprachdateien selbst laden (Englisch als Basis, LoxBerry-Sprache darüber)
-function upng_language()
-{
-    $home = getenv('LBHOMEDIR') ?: (defined('LBHOMEDIR') ? LBHOMEDIR : dirname(__DIR__, 4));
-    $dir = getenv('UPNG_TPLDIR') ?: "$home/templates/plugins/unifi_presenceng";
-    $lang = 'de';
-    if (class_exists('LBSystem') && method_exists('LBSystem', 'lblanguage')) {
-        $lang = LBSystem::lblanguage() ?: 'de';
-    }
-    $L = [];
-    foreach (array_unique(['en', $lang]) as $code) {
-        $file = "$dir/lang/language_" . preg_replace('/[^a-z]/', '', $code) . ".ini";
-        if (!is_readable($file)) continue;
-        $ini = parse_ini_file($file, true, INI_SCANNER_RAW);
-        if (!is_array($ini)) continue;
-        foreach ($ini as $section => $values) {
-            foreach ($values as $k => $v) $L["$section.$k"] = $v;
-        }
-    }
-    return $L;
-}
-$L = upng_language();
-function t($key)
-{
-    global $L;
-    return isset($L[$key]) ? $L[$key] : $key;
-}
-function e($key)
-{
-    echo htmlspecialchars(t($key), ENT_QUOTES, 'UTF-8', false);
-}
+require_once "lang.php";
 
 $pages = ['settings' => 1, 'clients' => 2, 'loxone' => 3, 'log' => 4];
 $page = isset($_GET['page']) && isset($pages[$_GET['page']]) ? $_GET['page'] : 'settings';
@@ -49,8 +19,9 @@ $navbar[4]['Name'] = t('NAV.LOG');
 $navbar[4]['URL'] = 'index.php?page=log';
 $navbar[$pages[$page]]['active'] = true;
 
-LBWeb::lbheader("Unifi-Presence NG", "", "help.html");
-$v = '4.3.1';
+$help = is_readable(upng_template_dir() . "/help/help_" . upng_lang_code() . ".html") ? "help_" . upng_lang_code() . ".html" : "help_en.html";
+LBWeb::lbheader("Unifi-Presence NG", "", $help);
+$v = '4.3.2';
 ?>
 <script>(function () {
   var m = 'dark';
@@ -310,7 +281,7 @@ $v = '4.3.1';
       <input type="text" id="mMac" placeholder="aa:bb:cc:dd:ee:ff" data-role="none">
       <input type="text" id="mName" placeholder="<?php e('CLIENTS.NAME'); ?>" data-role="none">
       <div class="u-seg" data-target="mType">
-        <button type="button" data-role="none" data-value="WIRELESS">WLAN</button>
+        <button type="button" data-role="none" data-value="WIRELESS"><?php e('CLIENTS.SHOW_WIFI'); ?></button>
         <button type="button" data-role="none" data-value="WIRED">LAN</button>
       </div>
       <input type="hidden" id="mType" value="WIRELESS">
