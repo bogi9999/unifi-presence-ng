@@ -16,6 +16,9 @@ Weiterentwicklung von „Unifi Presence“ 3.0.1 (Lox Your Life).
 * Fehler im alten Event-Handling behoben (WLAN-„Connected“-Events wurden nie ausgewertet).
 * **MQTT Broker wählbar**: LoxBerry-Broker aus den Systemeinstellungen oder eigener Broker
   (Adresse, Port, Benutzer, Passwort, optional TLS).
+* **Sammelwerte**: `UniFi/presence` mit `anyone`, `count`, `total` und Gruppen (z. B. Familie, Gäste).
+* **Loxone-Tab**: Namen der virtuellen Eingänge bzw. UDP-Befehlserkennungen zum Kopieren, Vorlage für einen virtuellen UDP-Eingang.
+* **Sicherung**: Einstellungen passwortgeschützt (AES-256-GCM) exportieren und auf einem anderen LoxBerry importieren.
 * Optional: MQTT „retained“, eigener MQTT-Name je Gerät, Geräte per MAC manuell hinzufügen, Log-Ansicht.
 * Einstellungen aus „Unifi Presence“ werden bei der Installation automatisch übernommen.
 
@@ -31,6 +34,17 @@ Je überwachtem Gerät wird `<Topic>/<Name>` als JSON gesendet, z. B. `UniFi/cli
 
 Die Felder sind kompatibel zum alten Plugin (neu ist nur `since`). Das MQTT Gateway von LoxBerry
 zerlegt das JSON, z. B. in `UniFi_clients_Handy-Ralf_connected`.
+
+Sammelwerte (Topic einstellbar, leer = aus), z. B. `UniFi/presence`:
+
+```json
+{"anyone":true,"count":2,"total":3,"present":"Anja, Ralf","since":"2026-11-20T19:18:44",
+ "groups":{"Familie":{"name":"Familie","anyone":true,"count":2,"total":3,"present":"Anja, Ralf"}}}
+```
+
+Als Person zählen Geräte mit dem Schalter „Person“ (Standard: WLAN ja, LAN nein). Gruppen werden je Gerät
+eingetragen, mehrere durch Komma getrennt. Im Gateway entstehen daraus z. B. `UniFi_presence_anyone` und
+`UniFi_presence_groups_Familie_count`.
 
 ## Installation
 
@@ -59,7 +73,7 @@ hochladen (oder URL des ZIPs eintragen). Updates kommen danach automatisch über
 
 ## Release erstellen
 
-1. Version in `plugin.cfg`, `bin/unifi_presenceng.py` (`VERSION`), `release.cfg`/`prerelease.cfg` und `CHANGELOG.md` anpassen
+1. Version in `plugin.cfg`, `bin/unifi_presenceng.py`, `webfrontend/htmlauth/ajax.php` + `index.php`, `release.cfg`/`prerelease.cfg` und `CHANGELOG.md` anpassen
 2. auf `main` pushen
 3. Der Workflow prüft, baut `Unifi-PresenceNG-<Version>.zip` und legt Tag + Release an, falls es die Version noch nicht gibt.
 

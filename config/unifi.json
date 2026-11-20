@@ -7,6 +7,7 @@
   "site": "default",
   "twoFaEnabled": false,
   "topic": "UniFi/clients",
+  "summaryTopic": "UniFi/presence",
   "retain": false,
   "wiredTimeout": 60,
   "pollInterval": 30,

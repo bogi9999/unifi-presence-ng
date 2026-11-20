@@ -1,3 +1,12 @@
+## 4.2.0 (2026-11-20)
+
+* Neues Design: Statuskopf mit Kennzahlen, Anwesenheitsübersicht, einklappbare Abschnitte, Umschalter, Speichern-Leiste nur bei Änderungen
+* Sammelwerte per MQTT (`UniFi/presence`): jemand zu Hause, Anzahl anwesender Personen, Gruppen (z. B. Familie, Gäste)
+* Geräte: Schalter „Person“ (zählt für jemand zu Hause) und Gruppe je Gerät
+* Neuer Tab „Loxone“: Namen der virtuellen Eingänge (HTTP) bzw. Befehlserkennungen (UDP) mit Kopierfunktion, Download einer Vorlage für einen virtuellen UDP-Eingang
+* Sicherung: Einstellungen als passwortgeschützte Datei exportieren und wieder importieren (AES-256-GCM)
+* Hinweis auf neue Versionen (Release/Prerelease) im Statuskopf
+
 ## 4.1.0 (2026-11-20)
 
 * MQTT Broker wählbar: LoxBerry-Broker (Systemeinstellungen) oder eigener Broker (Adresse, Port, Benutzer, Passwort, optional TLS)
